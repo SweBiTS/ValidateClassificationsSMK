@@ -6,7 +6,7 @@ input/*
 input/classifications/*
 input/fastq/*
 
-# ... but keep the filestructure of the input folder
+# ... but keep the filestructure
 !input/.gitkeep
 !input/classifications/
 !input/classifications/.gitkeep
@@ -17,6 +17,10 @@ input/fastq/*
 output/
 logs/
 
-# Ignore anything user-related in the supporting_files folder (but keep the structure)
+# Ignore anything user-related in the supporting_files folder...
 supporting_files/*
+supporting_files/genomes/*
+
+# ... but keep the filestructure
 !supporting_files/.gitkeep
+!supporting_files/genomes/.gitkeep
