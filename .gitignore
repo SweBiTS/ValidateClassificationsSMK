@@ -23,4 +23,5 @@ supporting_files/genomes/*
 
 # ... but keep the filestructure
 !supporting_files/.gitkeep
+!supporting_files/genomes/
 !supporting_files/genomes/.gitkeep
