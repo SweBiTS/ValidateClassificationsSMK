@@ -3,13 +3,10 @@
 
 # Ignore any input files...
 input/*
-input/classifications/*
 input/fastq/*
 
 # ... but keep the filestructure
 !input/.gitkeep
-!input/classifications/
-!input/classifications/.gitkeep
 !input/fastq/
 !input/fastq/.gitkeep
 
