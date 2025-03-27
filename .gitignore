@@ -1,0 +1,22 @@
+# Ignore Snakemake working directory
+.snakemake/
+
+# Ignore any input files...
+input/*
+input/classifications/*
+input/fastq/*
+
+# ... but keep the filestructure of the input folder
+!input/.gitkeep
+!input/classifications/
+!input/classifications/.gitkeep
+!input/fastq/
+!input/fastq/.gitkeep
+
+# Ignore output and log directories
+output/
+logs/
+
+# Ignore anything user-related in the supporting_files folder (but keep the structure)
+supporting_files/*
+!supporting_files/.gitkeep

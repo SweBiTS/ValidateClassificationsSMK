@@ -1,0 +1,23 @@
+###################################
+# Run configuration - Extract reads
+###################################
+
+# Should be static
+inputdir: "input"
+outdir: "output"
+logdir: "logs"
+genomesdir: "supporting_files/genomes"                            # Directory containing the genomes to map against
+indexdir: "reference_indexes"                                     # Directory to build the genome indexes in
+
+# Change these as needed
+fastq_file_pattern: "fastq/taxID-{tax_id}_R{direction}}.fq.gz"    # The pattern of the fastq files that hold the reads that we should map
+mapping_spec: "supporting_files/mapping_specification.yaml"       # File mapping which tax IDs to map against which genomes
+bbmap_minid: 0.97                                                 # Minimum identity for mapping
+bbmap_ambiguous: "toss"                                           # How to handle ambiguous mappings {best, toss, random, all}
+bbmap_pairedonly: "t"                                             # Treat unpaired reads as unmapped {t, f}
+
+# mode: clade                                                       # Choose between {single, clade}. 
+#                                                                   # Single: extract reads hitting exactly the specified tax ID(s).
+#                                                                   # Clade: extract all reads hitting any taxa in the clade rooted at the specified tax ID(s)
+# taxonomy_names: "supporting_files/names.dmp"                      # Taxonomy names.dmp files (use the same as used for the Kraken 2 classification)
+# taxonomy_nodes: "supporting_files/nodes.dmp"                      # Taxonomy nodes.dmp files (use the same as used for the Kraken 2 classification)

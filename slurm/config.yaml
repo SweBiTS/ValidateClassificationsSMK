@@ -1,0 +1,22 @@
+cluster:
+  jobscript: "slurm-jobscript.sh"
+  submitcmd: "sbatch {dependencies}"
+
+jobs: 100
+
+# Default resources
+default-resources:
+    slurm_account: "naiss2024-5-147"
+    slurm_partition: "shared"
+    runtime: "30m"
+    mem_mb: 2000
+    cpus_per_task: 2
+
+# Job-specific resources
+set-resources:
+    getAll_taxID_readIDs:
+        runtime: "30m"
+        mem_mb: 3000
+
+    extract_taxID_reads:
+        runtime: "60m"
