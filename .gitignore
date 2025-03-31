@@ -22,3 +22,6 @@ supporting_files/genomes/*
 !supporting_files/.gitkeep
 !supporting_files/genomes/
 !supporting_files/genomes/.gitkeep
+
+# Misc
+.vscode/*

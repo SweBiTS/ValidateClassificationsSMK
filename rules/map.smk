@@ -1,127 +1,171 @@
-# -*- coding: utf-8 -*-
+# rules/map.smk
 
 import yaml
+import sys
+from pathlib import Path
+import logging
 
-"""
-Map reads to specified reference genomes.
-"""
+# Logger specific to this module - inherits config from root logger
+logger = logging.getLogger(__name__)
 
-# For improved speed, add 'usejni=t' to the command line of bbmap tools which support the use of the compiled jni C code.
+# ==================================================
+#      Mapping setup
+# ==================================================
 
-# Parameters from the configuration that we'll use
-mapping_spec = config['mapping_spec']               # File with tax IDs and the reference genomes to map them against
-fastq_file_pattern = config["fastq_file_pattern"]   # The pattern of the fastq files
+# --- Load Mapping Specification ---
+config_mapping_spec_path = Path(config["MAPPING_SPECIFICATION"])
+try:
+    logger.info(f"Loading mapping specification from: {config_mapping_spec_path}")
+    with open(config_mapping_spec_path, 'r') as f:
+        raw_mapping_spec = yaml.safe_load(f)
+        if raw_mapping_spec is None:
+            mapping_spec_data = {}
+            logger.warning(f"Mapping specification file '{config_mapping_spec_path}' is empty or invalid.")
+        else:
+            mapping_spec_data = {str(k): v for k, v in raw_mapping_spec.items()}
+            logger.info(f"Loaded {len(mapping_spec_data)} taxID entries from spec file.")
+except FileNotFoundError:
+    logger.error(f"Mapping specification file not found at '{config_mapping_spec_path}'. Exiting.")
+    sys.exit(1)
+except yaml.YAMLError as e:
+    logger.error(f"Error parsing YAML file '{config_mapping_spec_path}': {e}. Exiting.")
+    sys.exit(1)
+except Exception as e:
+    logger.error(f"An unexpected error occurred reading '{config_mapping_spec_path}': {e}. Exiting.")
+    sys.exit(1)
 
-# Load mapping specification
-def load_mapping_spec(mapping_spec):
-    with open(mapping_spec) as f:
-        return yaml.safe_load(f)
 
-mapping_spec = load_mapping_spec(mapping_spec)
+# --- Helper Function: Get Genome Basename (Stem) ---
+def get_genome_basename(fasta_filename):
+    if fasta_filename and isinstance(fasta_filename, str):
+        return Path(fasta_filename).stem
+    logger.warning(f"Invalid or non-string genome filename '{fasta_filename}' encountered in spec file.")
+    return None
 
-# Define input FASTQ files (assuming a consistent naming scheme)
-tax_ids = mapping_spec.keys()
 
-def fastq_files(wildcards):
-    return [fastq_file_pattern.format(tax_id=wildcards.tax_id, direction="1"), fastq_file_pattern.format(tax_id=wildcards.tax_id, direction="2")]
+# --- Helper Function: Find Actual Genome File Path (.fasta or .fa) ---
+def get_actual_fasta_path(wildcards):
+    """Finds the full path to the genome file, checking .fasta and .fa extensions."""
+    basename = wildcards.genome_basename
+    fasta_path = GENOMES_DIR_P / f"{basename}.fasta"
+    fa_path = GENOMES_DIR_P / f"{basename}.fa"
 
-def index_dir(ref):
-    return os.path.splitext(os.path.basename(ref))[0]
+    if fasta_path.exists():
+        return str(fasta_path)
+    elif fa_path.exists():
+        return str(fa_path)
+    else:
+        raise FileNotFoundError(
+            f"Genome file for basename '{basename}' not found with .fasta or .fa extension "
+            f"in directory '{GENOMES_DIR_P}'"
+        )
 
-# Rule to build BBMap indexes
-rule build_index:
+# --- Generate Target Output Files Function (for rule all) ---
+def get_all_target_outputs(mapping_spec, outdir_pattern_template):
+    """Generates list of expected final output files based on the mapping spec."""
+    target_files = []
+    logger.info(f"Generating target output file list using pattern: {outdir_pattern_template}")
+    count = 0
+    warning_count = 0
+    for tax_id, genome_list in mapping_spec.items():
+        if not isinstance(genome_list, list):
+             logger.warning(f"Expected list of genomes for tax_id {tax_id}, found {type(genome_list)}. Skipping this entry.")
+             warning_count += 1
+             continue
+        for genome_fasta in genome_list:
+            genome_basename = get_genome_basename(genome_fasta)
+            if genome_basename:
+                target_path = Path(outdir_pattern_template.format(
+                    outdir=OUTPUT_DIR_P,
+                    tax_id=tax_id,
+                    genome_basename=genome_basename
+                ))
+                target_files.append(str(target_path))
+                count += 1
+            else:
+                warning_count += 1
+                pass
+    logger.info(f"Generated {count} target output files.")
+    if warning_count > 0:
+        logger.warning(f"Encountered {warning_count} issues while processing mapping specification.")
+    return target_files
+
+# --- Define Output Patterns ---
+# These patterns will be formatted using the Path objects (e.g., OUTPUT_DIR_P)
+BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.bam"
+STATS_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_stats.txt"
+
+# --- Define Functions for Rule All ---
+def get_all_target_bams():
+    return get_all_target_outputs(mapping_spec_data, BAM_OUT_PATTERN)
+
+def get_all_target_stats():
+     return get_all_target_outputs(mapping_spec_data, STATS_OUT_PATTERN)
+
+# ==================================================
+#      SNAKEMAKE RULES
+# ==================================================
+
+# --- Rule: Index Reference Genome using BBMap ---
+rule bbmap_index:
     input:
-        fasta=GENOMESDIR/"{ref}"
+        fasta = get_actual_fasta_path
     output:
-        index=lambda wildcards: INDEXDIR + "/" + index_dir(wildcards.ref)
+        idx_dir = directory(str(INDEX_DIR_BBMAP_P / "{genome_basename}"))
+    params:
+        build_id = 1,
+        mem = config.get("BBMAP_INDEX_MEM", "20g")
+    log:
+        path = str(LOG_DIR_P / "bbmap_index" / "{genome_basename}.log")
+    conda:
+        ".." / ENVS_DIR_P / "map.yaml"
+    threads: config.get("BBMAP_INDEX_THREADS", 8)
     shell:
-        "bbmap.sh ref={input.fasta} path={output.index}"
+        "bbmap.sh "
+            "ref={input.fasta} "
+            "path={output.idx_dir} "
+            "build={params.build_id} "
+            "-Xmx{params.mem} "
+            "threads={threads} "
+            "pigz=t unpigz=t "
+            "overwrite=t "
+            "> {log} 2>&1"
 
-# Rule to map reads using BBMap
-rule map_reads:
+
+# --- Rule: Map Reads to Reference using BBMap ---
+rule bbmap_map_reads:
     input:
-        reads=fastq_files,
-        index=lambda wildcards: INDEXDIR + "/" + index_dir(wildcards.ref)
+        idx_dir = rules.bbmap_index.output.idx_dir,
+        r1 = lambda wildcards: str(INPUT_DIR_P / config["FASTQ_FILE_PATTERN"].format(tax_id=wildcards.tax_id, direction="1")),
+        r2 = lambda wildcards: str(INPUT_DIR_P / config["FASTQ_FILE_PATTERN"].format(tax_id=wildcards.tax_id, direction="2"))
     output:
-        bam=OUTDIR/"mapped/{tax_id}_{ref}.bam"
+        bam = str(OUTPUT_DIR_P / "mapping" / "{tax_id}" / "{genome_basename}" / "mapping.bam"),
+        stats = str(OUTPUT_DIR_P / "mapping" / "{tax_id}" / "{genome_basename}" / "mapping_stats.txt")
+    params:
+        build_id = 1,
+        mem = config.get("BBMAP_MAP_MEM", "20g"),
+        minid = config["BBMAP_MINID"],
+        ambig = config["BBMAP_AMBIGUOUS"],
+        pairedonly = config["BBMAP_PAIREDONLY"],
+        extra_stats = lambda wildcards, output: f"statsfile={output.stats}"
+    log:
+        path = str(LOG_DIR_P / "bbmap_map" / "{tax_id}_{genome_basename}.log")
+    conda:
+        ".." / ENVS_DIR_P / "map.yaml"
+    threads: config.get("BBMAP_MAP_THREADS", 8)
     shell:
-        "bbmap.sh in={input.reads[0]} in2={input.reads[1]} ref={input.index} out={output.bam}"
-
-# Generate rules dynamically for each TAX_ID and reference pair
-rule all:
-    input:
-        expand("mapped/{{tax_id}}_{{ref}}.bam", tax_id=tax_ids, ref=[ref for tax_id in tax_ids for ref in mapping_spec[tax_id]])
-
-
-# # Create a mapping dict between tax IDs and reference genomes to map against
-# def read_mapping_spec(file):
-#     with open(file) as f:
-#         return yaml.safe_load(f)
-
-# # Get the mapping dict
-# taxid2ref = read_mapping_spec(mapping_spec)
-
-# # Fail-safe: Exit if the mapping spec file was empty
-# if not taxid2ref:
-#     raise ValueError(f"Nothing found in {mapping_spec}. Check the file contents.")
-
-# # The fastq output files containing taxonomic ID-specific reads
-# extracted_reads = expand(
-#     str(OUTDIR/"mode_{mode}/{tax_id}/{sample}_taxID-{tax_id}_{direction}.fq.gz"),
-#     mode=mode,
-#     sample=SAMPLES,
-#     tax_id=tax_ids,
-#     direction=['R1', 'R2'])
-# all_outputs.extend(extracted_reads)
-
-# rule make_index:
-#     conda:
-#         "../envs/map.yaml"
-#     input:
-#         reference = 
-
-# rule getAll_taxID_readIDs:
-#     conda:
-#         "../envs/extract_reads.yaml"
-#     input:
-#         kraken2 = lambda wildcards: INPUTDIR/k2_classification_file.format(sample=wildcards.sample)
-#     output:
-#         temp(OUTDIR/"mode_{mode}/{sample}_allTaxIDs_readIDs.txt")
-#     params:
-#         names = names_file,
-#         nodes = nodes_file,
-#         extract_mode = mode,
-#         tax_id_file = tax_ids_file
-#     log:
-#         LOGDIR / "getAll_taxID_readIDs_{sample}_{mode}.log"
-#     shell:
-#         """
-#         /usr/bin/time -v scripts/selmeout.py \
-#             --mode {params.extract_mode} \
-#             --nodes {params.nodes} \
-#             --names {params.names} \
-#             --output {output} \
-#             --input {input.kraken2} \
-#             --tax_id_file {params.tax_id_file} \
-#             2>&1 | tee {log}
-#         """
-
-# rule extract_taxID_reads:
-#     conda:
-#         "../envs/extract_reads.yaml"
-#     input:
-#         R1 = lambda wildcards: INPUTDIR/fastq_file_pattern.format(sample=wildcards.sample, direction='R1'),
-#         R2 = lambda wildcards: INPUTDIR/fastq_file_pattern.format(sample=wildcards.sample, direction='R2'),
-#         allReadIDs = OUTDIR/"mode_{mode}/{sample}_allTaxIDs_readIDs.txt"
-#     output:
-#         taxon_readIDs = temp(OUTDIR/"mode_{mode}/{tax_id}/{sample}_taxID-{tax_id}_readIDs.txt"),
-#         R1 = OUTDIR/"mode_{mode}/{tax_id}/{sample}_taxID-{tax_id}_R1.fq.gz",
-#         R2 = OUTDIR/"mode_{mode}/{tax_id}/{sample}_taxID-{tax_id}_R2.fq.gz"
-#     log:
-#         LOGDIR / "extract_taxID_reads_{sample}_taxID-{tax_id}_{mode}.log"
-#     shell:
-#         """
-#         awk -v taxid={wildcards.tax_id} -F '\t' '$2 == taxid {{print $3}}' {input.allReadIDs} > {output.taxon_readIDs}
-#         /usr/bin/time -v sh -c 'seqtk subseq {input.R1} {output.taxon_readIDs} | gzip - > {output.R1}' 2>> {log}
-#         /usr/bin/time -v sh -c 'seqtk subseq {input.R2} {output.taxon_readIDs} | gzip - > {output.R2}' 2>> {log}
-#         """
+        "bbmap.sh "
+            "in1={input.r1} "
+            "in2={input.r2} "
+            "path={input.idx_dir} "
+            "build={params.build_id} "
+            "out={output.bam} "
+            "{params.extra_stats} "
+            "minid={params.minid} "
+            "ambiguous={params.ambig} "
+            "pairedonly={params.pairedonly} "
+            "-Xmx{params.mem} "
+            "threads={threads} "
+            "pigz=t unpigz=t "
+            "overwrite=t "
+            "> {log} 2>&1"
