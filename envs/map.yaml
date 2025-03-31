@@ -1,8 +1,11 @@
-
 name: map
 channels:
-    - bioconda
     - conda-forge
+    - bioconda
     - defaults
 dependencies:
-    - bbmap
+    - bbmap=39.01
+    - samtools=1.18
+    - python>=3.8
+    - pigz
+    - pyyaml

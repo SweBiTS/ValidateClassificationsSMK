@@ -1,5 +1,3 @@
-# rules/map.smk
-
 import yaml
 import sys
 from pathlib import Path
@@ -91,16 +89,19 @@ def get_all_target_outputs(mapping_spec, outdir_pattern_template):
     return target_files
 
 # --- Define Output Patterns ---
-# These patterns will be formatted using the Path objects (e.g., OUTPUT_DIR_P)
-BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.bam"
+RAW_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.bam"
+SORTED_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.sorted.bam"
+BAM_INDEX_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.sorted.bam.bai"
 STATS_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_stats.txt"
+LOG_MAP_PATTERN = "{logdir}/bbmap_map/{tax_id}_{genome_basename}.log"
+LOG_SORT_PATTERN = "{logdir}/samtools_sort/{tax_id}_{genome_basename}.log"
+LOG_INDEX_PATTERN = "{logdir}/samtools_index/{tax_id}_{genome_basename}.log"
 
 # --- Define Functions for Rule All ---
-def get_all_target_bams():
-    return get_all_target_outputs(mapping_spec_data, BAM_OUT_PATTERN)
+# Targets are indices of sorted bam files (last step)
+def get_all_target_indices():
+     return get_all_target_outputs(mapping_spec_data, BAM_INDEX_OUT_PATTERN)
 
-def get_all_target_stats():
-     return get_all_target_outputs(mapping_spec_data, STATS_OUT_PATTERN)
 
 # ==================================================
 #      SNAKEMAKE RULES
@@ -139,8 +140,12 @@ rule bbmap_map_reads:
         r1 = lambda wildcards: str(INPUT_DIR_P / config["FASTQ_FILE_PATTERN"].format(tax_id=wildcards.tax_id, direction="1")),
         r2 = lambda wildcards: str(INPUT_DIR_P / config["FASTQ_FILE_PATTERN"].format(tax_id=wildcards.tax_id, direction="2"))
     output:
-        bam = str(OUTPUT_DIR_P / "mapping" / "{tax_id}" / "{genome_basename}" / "mapping.bam"),
-        stats = str(OUTPUT_DIR_P / "mapping" / "{tax_id}" / "{genome_basename}" / "mapping_stats.txt")
+        bam = temp(RAW_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )),
+        stats = STATS_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
     params:
         build_id = 1,
         mem = config.get("BBMAP_MAP_MEM", "20g"),
@@ -149,7 +154,9 @@ rule bbmap_map_reads:
         pairedonly = config["BBMAP_PAIREDONLY"],
         extra_stats = lambda wildcards, output: f"statsfile={output.stats}"
     log:
-        path = str(LOG_DIR_P / "bbmap_map" / "{tax_id}_{genome_basename}.log")
+        path = LOG_MAP_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
     conda:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 8)
@@ -169,3 +176,57 @@ rule bbmap_map_reads:
             "pigz=t unpigz=t "
             "overwrite=t "
             "> {log} 2>&1"
+
+
+# --- Rule: Sort BAM file using Samtools ---
+rule samtools_sort:
+    input:
+        bam = RAW_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    output:
+        bam = SORTED_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    params:
+        mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G"), # Memory per thread for sorting
+        extra = "" # Placeholder for extra samtools sort options if needed
+    log:
+        path = LOG_SORT_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "map.yaml"
+    threads: config.get("SAMTOOLS_SORT_THREADS", 4)
+    shell:
+        "samtools sort "
+        "-@ {threads} "                 # Number of sorting threads
+        "-m {params.mem_per_thread} "   # Memory per thread
+        "-o {output.bam} "              # Output file
+        "{params.extra} "               # Extra options
+        "{input.bam} "                  # Input file
+        "2> {log}"                      # Log stderr
+
+
+# --- Rule: Index sorted BAM file using Samtools ---
+rule samtools_index:
+    input:
+        bam = SORTED_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    output:
+        index = BAM_INDEX_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    log:
+        LOG_INDEX_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "map.yaml"
+    threads: config.get("SAMTOOLS_INDEX_THREADS", 1) # Indexing often doesn't scale well with threads
+    shell:
+        "samtools index "
+        "-@ {threads} "  # Number of threads
+        "{input.bam} "   # Input file (index is created alongside as {input.bam}.bai)
+        "2> {log}"       # Log stderr
