@@ -1,6 +1,6 @@
 # ValidateClassificationsSMK
 
-Map reads to specified reference genomes using BBMap and Samtools.
+Map taxon-specific reads (e.g., previously classified by Kraken 2) to specified reference genomes using BBMap and Samtools.
 
 This pipeline was created to run on a cluster with the SLURM Workload Manager and Conda package manager. Therefore this README is tailored towards that kind of environment.
 
