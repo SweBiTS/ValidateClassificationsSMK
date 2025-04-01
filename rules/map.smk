@@ -1,10 +1,32 @@
 import yaml
 import sys
+import os
 from pathlib import Path
 import logging
 
+
+# ==================================================
+#      Housekeeping
+# ==================================================
+
+# --- Logging ---
 # Logger specific to this module - inherits config from root logger
 logger = logging.getLogger(__name__)
+
+
+# --- Environment Detection ---
+# Detect WSL vs native Linux. BBMap JNI acceleration (`usejni=t`) failed on WSL
+# during development due to linking issues. Set flag to `usejni=f` (WSL) or 
+# `usejni=t` (Linux) for compatibility/performance.
+IS_WSL = 'WSL_DISTRO_NAME' in os.environ or 'WSL_INTEROP' in os.environ
+
+if IS_WSL:
+    logger.warning("WSL environment detected. Explicitly disabling BBMap JNI acceleration (usejni=f) due to known compatibility issues.")
+    BBMAP_JNI_FLAG = "usejni=f"
+else:
+    logger.info("Non-WSL environment detected. Enabling BBMap JNI acceleration (usejni=t).")
+    BBMAP_JNI_FLAG = "usejni=t"
+
 
 # ==================================================
 #      Mapping setup
@@ -130,7 +152,7 @@ rule bbmap_index:
             "threads={threads} "
             "pigz=t unpigz=t "
             "overwrite=t "
-            "usejni=t "
+            f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
             "> {log} 2>&1"
 
 
@@ -162,14 +184,6 @@ rule bbmap_map_reads:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 8)
     shell:
-        # Explicitly define the path to the jni directory using the job's conda env prefix
-        # NOTE: Double-check the relative path 'opt/bbmap-39.01-1/jni' if bbmap version changes or install differs.
-        #"export JNI_DIR={job.conda_env_prefix}/opt/bbmap-39.01-1/jni && "
-        # Prepend this directory to the LD_LIBRARY_PATH
-        #"export LD_LIBRARY_PATH=$JNI_DIR:$LD_LIBRARY_PATH && "
-        # Add optional debug output to SLURM log (remove later)
-        #"echo 'DEBUG: JNI_DIR=$JNI_DIR' >&2 && "
-        #"echo 'DEBUG: LD_LIBRARY_PATH=$LD_LIBRARY_PATH' >&2 && "
         "bbmap.sh "
             "in1={input.r1} "
             "in2={input.r2} "
@@ -184,8 +198,8 @@ rule bbmap_map_reads:
             "threads={threads} "
             "pigz=t unpigz=t "
             "overwrite=t "
-            "usejni=t "
-            "> {log} 2>&1"
+            f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
+        "> {log} 2>&1"
 
 
 # --- Rule: Sort BAM file using Samtools ---
