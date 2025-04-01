@@ -20,11 +20,11 @@ The pipeline performs the following main steps for each taxonomic identifier (Ta
 ### Before you run the pipeline
 
 #### 1. Snakemake Installation (v9+ Recommended)
-This pipeline utilizes features available in Snakemake v8+ (and tested with v9+). Ensure you have a compatible version installed, along with the SLURM executor plugin and PyYAML.
+Ensure you have a compatible version installed (snakemake version 9.1.3+), along with the SLURM executor plugin and PyYAML.
 
 You can create a dedicated conda environment for Snakemake:
 ```bash
-conda create -c conda-forge -c bioconda -n snakemake snakemake snakemake-executor-plugin-slurm pyyaml
+conda create -c conda-forge -c bioconda -n snakemake snakemake>=9.1.3 snakemake-executor-plugin-slurm pyyaml
 ```
 *(Note: `pyyaml` is needed for parsing the `mapping_specification.yaml` file within the Snakefile).*
 
