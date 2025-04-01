@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import logging
 
+# TODO: Implement dynamic resource allocation that depend on the size of the input files.
 
 # ==================================================
 #      Housekeeping
