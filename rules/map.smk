@@ -64,22 +64,26 @@ def get_genome_basename(fasta_filename):
     return None
 
 
-# --- Helper Function: Find Actual Genome File Path (.fasta or .fa) ---
+# --- Helper Function: Find Actual Genome File Path ---
 def get_actual_fasta_path(wildcards):
-    """Finds the full path to the genome file, checking .fasta and .fa extensions."""
+    """Finds the full path to the genome file, checking common extensions."""
     basename = wildcards.genome_basename
-    fasta_path = GENOMES_DIR_P / f"{basename}.fasta"
-    fa_path = GENOMES_DIR_P / f"{basename}.fa"
+    genomes_dir = GENOMES_DIR_P
+    
+    # Define the extensions to check in order of preference
+    extensions_to_check = [".fasta", ".fa", ".fna"]
 
-    if fasta_path.exists():
-        return str(fasta_path)
-    elif fa_path.exists():
-        return str(fa_path)
-    else:
-        raise FileNotFoundError(
-            f"Genome file for basename '{basename}' not found with .fasta or .fa extension "
-            f"in directory '{GENOMES_DIR_P}'"
-        )
+    for ext in extensions_to_check:
+        potential_path = genomes_dir / f"{basename}{ext}"
+        if potential_path.exists():
+            logger.debug(f"Found genome file for basename '{basename}' at: {potential_path}")
+            return str(potential_path) # Return the path string immediately if found
+
+    # If the loop finishes without returning, no file was found
+    raise FileNotFoundError(
+        f"Genome file for basename '{basename}' not found with any of the extensions "
+        f"{extensions_to_check} in directory '{genomes_dir}'"
+    )
 
 # --- Generate Target Output Files Function (for rule all) ---
 def get_all_target_outputs(mapping_spec, outdir_pattern_template):
