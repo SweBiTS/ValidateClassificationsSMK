@@ -184,6 +184,7 @@ rule bbmap_map_reads:
             "threads={threads} "
             "pigz=t unpigz=t "
             "overwrite=t "
+            "usejni=t "
             "> {log} 2>&1"
 
 
