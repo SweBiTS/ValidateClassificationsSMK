@@ -162,6 +162,14 @@ rule bbmap_map_reads:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 8)
     shell:
+        # Explicitly define the path to the jni directory using the job's conda env prefix
+        # NOTE: Double-check the relative path 'opt/bbmap-39.01-1/jni' if bbmap version changes or install differs.
+        #"export JNI_DIR={job.conda_env_prefix}/opt/bbmap-39.01-1/jni && "
+        # Prepend this directory to the LD_LIBRARY_PATH
+        #"export LD_LIBRARY_PATH=$JNI_DIR:$LD_LIBRARY_PATH && "
+        # Add optional debug output to SLURM log (remove later)
+        #"echo 'DEBUG: JNI_DIR=$JNI_DIR' >&2 && "
+        #"echo 'DEBUG: LD_LIBRARY_PATH=$LD_LIBRARY_PATH' >&2 && "
         "bbmap.sh "
             "in1={input.r1} "
             "in2={input.r2} "
@@ -176,7 +184,6 @@ rule bbmap_map_reads:
             "threads={threads} "
             "pigz=t unpigz=t "
             "overwrite=t "
-            "usejni=t "
             "> {log} 2>&1"
 
 
