@@ -221,7 +221,7 @@ rule samtools_index:
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     log:
-        LOG_INDEX_PATTERN.format(
+        path = LOG_INDEX_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     conda:
