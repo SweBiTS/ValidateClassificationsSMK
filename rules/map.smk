@@ -144,6 +144,7 @@ rule bbmap_index:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_INDEX_THREADS", 8)
     shell:
+        "/use/bin/time -v "
         "bbmap.sh "
             "ref={input.fasta} "
             "path={output.idx_dir} "
@@ -184,6 +185,7 @@ rule bbmap_map_reads:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 8)
     shell:
+        "/use/bin/time -v "
         "bbmap.sh "
             "in1={input.r1} "
             "in2={input.r2} "
@@ -223,6 +225,7 @@ rule samtools_sort:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("SAMTOOLS_SORT_THREADS", 4)
     shell:
+        "/use/bin/time -v "
         "samtools sort "
         "-@ {threads} "                 # Number of sorting threads
         "-m {params.mem_per_thread} "   # Memory per thread
@@ -250,6 +253,7 @@ rule samtools_index:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("SAMTOOLS_INDEX_THREADS", 1) # Indexing often doesn't scale well with threads
     shell:
+        "/use/bin/time -v "
         "samtools index "
         "-@ {threads} "  # Number of threads
         "{input.bam} "   # Input file (index is created alongside as {input.bam}.bai)
