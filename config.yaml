@@ -26,7 +26,7 @@ BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, 
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
 # Optional: Add resource configurations if needed
-BBMAP_INDEX_MEM: "4g"
+BBMAP_INDEX_MEM: "20g"
 # BBMAP_INDEX_THREADS: 8
-BBMAP_MAP_MEM: "4g"
+BBMAP_MAP_MEM: "20g"
 # BBMAP_MAP_THREADS: 8
