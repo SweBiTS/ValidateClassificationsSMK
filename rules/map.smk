@@ -118,16 +118,18 @@ def get_all_target_outputs(mapping_spec, outdir_pattern_template):
 # --- Define Output Patterns ---
 RAW_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.bam"
 SORTED_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.sorted.bam"
-BAM_INDEX_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.sorted.bam.bai"
+DEDUP_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_dedup.bam"
+DEDUP_BAM_INDEX_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_dedup.bam.bai"
 STATS_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_stats.txt"
 LOG_MAP_PATTERN = "{logdir}/bbmap_map/{tax_id}_{genome_basename}.log"
 LOG_SORT_PATTERN = "{logdir}/samtools_sort/{tax_id}_{genome_basename}.log"
-LOG_INDEX_PATTERN = "{logdir}/samtools_index/{tax_id}_{genome_basename}.log"
+LOG_MARKDUP_PATTERN = "{logdir}/sambamba_markdup/{tax_id}_{genome_basename}.log"
+LOG_INDEX_PATTERN = "{logdir}/samtools_index/{tax_id}_{genome_basename}_dedup.log"
 
 # --- Define Functions for Rule All ---
 # Targets are indices of sorted bam files (last step)
 def get_all_target_indices():
-     return get_all_target_outputs(mapping_spec_data, BAM_INDEX_OUT_PATTERN)
+     return get_all_target_outputs(mapping_spec_data, DEDUP_BAM_INDEX_OUT_PATTERN)
 
 
 # ==================================================
@@ -197,6 +199,8 @@ rule bbmap_map_reads:
             "path={input.idx_dir} "
             "build={params.build_id} "
             "out={output.bam} "
+            "statsfile={output.stats} "
+            "mappedonly=t "
             "{params.extra_stats} "
             "minid={params.minid} "
             "ambiguous={params.ambig} "
@@ -240,14 +244,50 @@ rule samtools_sort:
         "2> {log}"                      # Log stderr
 
 
-# --- Rule: Index sorted BAM file using Samtools ---
-rule samtools_index:
+# --- Rule: Mark/Remove Duplicates using Sambamba ---
+rule mark_duplicates_sambamba:
     input:
-        bam = SORTED_BAM_OUT_PATTERN.format(
+        # Input is the coordinate-sorted BAM from samtools_sort
+        sorted_bam = SORTED_BAM_OUT_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     output:
-        index = BAM_INDEX_OUT_PATTERN.format(
+        # Output is the BAM file with duplicates removed
+        dedup_bam = DEDUP_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    params:
+        # Define a temporary directory relative to the output
+        tmpdir = lambda wildcards, output: Path(output.dedup_bam).parent / "tmp_sambamba_markdup"
+    log:
+        path = LOG_MARKDUP_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+         ".." / ENVS_DIR_P / "map.yaml" # Make sure sambamba is added here
+    threads: config.get("SAMBAMBA_MARKDUP_THREADS", 8)
+    resources: # Define resources for SLURM profile or direct use
+        mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 16000),
+        runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "02:00:00")
+    shell:
+        "/usr/bin/time -v "
+        "mkdir -p {params.tmpdir} && "
+        "sambamba markdup -t {threads} "
+        "--tmpdir={params.tmpdir} "
+        "--remove-duplicates "
+        "{input.sorted_bam} "
+        "{output.dedup_bam} "
+        "> {log} 2>&1 && "
+        "rm -rf {params.tmpdir} " # Clean up tmpdir *after* successful run
+
+# --- Rule: Index Deduplicated BAM file using Samtools ---
+rule samtools_index:
+    input:
+        dedup_bam = DEDUP_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    output:
+        index = DEDUP_BAM_INDEX_OUT_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     log:
@@ -255,11 +295,14 @@ rule samtools_index:
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     conda:
-        ".." / ENVS_DIR_P / "map.yaml"
-    threads: config.get("SAMTOOLS_INDEX_THREADS", 1) # Indexing often doesn't scale well with threads
+         ".." / ENVS_DIR_P / "map.yaml"
+    threads: config.get("SAMTOOLS_INDEX_THREADS", 1)
+    resources:
+        mem_mb=config.get("SAMTOOLS_INDEX_MEM_MB", 2000),
+        runtime=config.get("SAMTOOLS_INDEX_RUNTIME", "00:30:00")
     shell:
         "/usr/bin/time -v "
         "samtools index "
-        "-@ {threads} "  # Number of threads
-        "{input.bam} "   # Input file (index is created alongside as {input.bam}.bai)
-        "2> {log}"       # Log stderr
+        "-@ {threads} "
+        "{input.dedup_bam} "
+        "2> {log}"

@@ -14,10 +14,12 @@ GENOMES_DIR: "supporting_files/genomes"               # Directory containing the
 INDEX_DIR_BBMAP: "bbmap_indices"                      # Subdirectory within 'outdir' for BBMap indexes
 ENVS_DIR: "envs"
 
+
 # --- Input File Patterns & Specifications ---
 # Change these as needed
 FASTQ_FILE_PATTERN: "fastq/taxID-{tax_id}_R{direction}.fq.gz"           # Pattern for input FASTQ files
 MAPPING_SPECIFICATION: "supporting_files/mapping_specification.yaml"    # File mapping tax IDs to genome files
+
 
 # --- Tool Parameters ---
 # BBMap specific settings
@@ -25,8 +27,34 @@ BBMAP_MINID: 0.97               # Minimum identity for mapping
 BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
-# Optional: Add resource configurations if needed
+
+# --- Resource Configurations ---
+# These are used directly by rules AND referenced by slurm/config.yaml
+
+# BBMap Index Resources
 BBMAP_INDEX_MEM: "20g"
-# BBMAP_INDEX_THREADS: 8
+BBMAP_INDEX_MEM_MB: 20000
+BBMAP_INDEX_THREADS: 8
+BBMAP_INDEX_RUNTIME: "1h"
+
+# BBMap Map Reads Resources
 BBMAP_MAP_MEM: "20g"
-# BBMAP_MAP_THREADS: 8
+BBMAP_MAP_MEM_MB: 20000
+BBMAP_MAP_THREADS: 8
+BBMAP_MAP_RUNTIME: "24h"
+
+# Samtools Sort Resources
+SAMTOOLS_SORT_THREADS: 4
+SAMTOOLS_SORT_MEM_PER_THREAD: "2G"
+SAMTOOLS_SORT_MEM_PER_THREAD_MB: 2048 # Keep for SLURM calculation
+SAMTOOLS_SORT_RUNTIME: "2h"
+
+# Sambamba Markdup Resources
+SAMBAMBA_MARKDUP_THREADS: 8
+SAMBAMBA_MARKDUP_MEM_MB: 16000
+SAMBAMBA_MARKDUP_RUNTIME: "2h"
+
+# Samtools Index Resources
+SAMTOOLS_INDEX_THREADS: 1
+SAMTOOLS_INDEX_MEM_MB: 2000
+SAMTOOLS_INDEX_RUNTIME: "30m"

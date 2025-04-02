@@ -7,5 +7,7 @@ dependencies:
     - bbmap=39.01
     - samtools=1.18
     - python>=3.8
+    - sambamba>=1.0.1
     - pigz
     - pyyaml
+    - pandas

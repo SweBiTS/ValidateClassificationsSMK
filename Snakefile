@@ -46,6 +46,10 @@ logging.info(f"Conda environments directory: {ENVS_DIR_P}")
 
 # --- Include Rule Modules ---
 include: "rules/map.smk"
+include: "rules/simulation_validation.smk"
+
+# Define the final output target for the validation part
+FINAL_VALIDATION_REPORT = str(OUTPUT_DIR_P / "validation" / "coverage_validation_summary.tsv")
 
 # --- Rule All: Defines the final targets of the workflow ---
 localrules: all
@@ -53,5 +57,8 @@ localrules: all
 rule all:
     input:
         # Call the function(s) defined in map.smk
-        get_all_target_indices()
+        get_all_target_indices(),
+        
+        # Add the explicit path to the final validation report
+        #FINAL_VALIDATION_REPORT
         # get_all_target_stats()

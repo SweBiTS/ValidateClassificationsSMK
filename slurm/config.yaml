@@ -31,6 +31,12 @@ set-resources:
     runtime: "2h"
     cpus_per_task: 6
 
+  mark_duplicates_sambamba:
+    mem_mb: 16000 # Or reference config: "{SAMBAMBA_MARKDUP_MEM_MB}"
+    runtime: "2h" # Or reference config
+    cpus-per-task: "{SAMBAMBA_MARKDUP_THREADS}" # Match threads
+  
   samtools_index:
+    mem_mb: 2000
     runtime: "1h"
-    cpus_per_task: 1
+    cpus-per-task: "{SAMTOOLS_INDEX_THREADS}"
