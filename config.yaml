@@ -54,12 +54,13 @@ SAMBAMBA_MARKDUP_THREADS: 8
 SAMBAMBA_MARKDUP_MEM_MB: 16000
 SAMBAMBA_MARKDUP_RUNTIME: "2h"
 
-# # Samtools Index Resources
-# SAMTOOLS_INDEX_THREADS: 1
-# SAMTOOLS_INDEX_MEM_MB: 2000
-# SAMTOOLS_INDEX_RUNTIME: "20m"
-
 # Samtools Stats Resources
 SAMTOOLS_STATS_MEM_MB: 2000
 SAMTOOLS_STATS_RUNTIME: "20m"
 SAMTOOLS_STATS_THREADS: 1
+
+# NEAT Simulation Resources
+SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (INTEGER)
+NEAT_SIM_MEM_MB: 4000
+NEAT_SIM_RUNTIME: "12h"
+NEAT_SIM_THREADS: 1     # NEAT simulation is single-threaded currently, but intends to be parallelized in the future
