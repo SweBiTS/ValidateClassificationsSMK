@@ -128,7 +128,6 @@ LOG_BBMAP_INDEX_PATTERN = "{logdir}/bbmap_index/{genome_basename}.log"
 LOG_MAP_PATTERN = "{logdir}/bbmap_map/{tax_id}_{genome_basename}.log"
 LOG_SORT_PATTERN = "{logdir}/samtools_sort/{tax_id}_{genome_basename}.log"
 LOG_MARKDUP_PATTERN = "{logdir}/sambamba_markdup/{tax_id}_{genome_basename}.log"
-LOG_INDEX_PATTERN = "{logdir}/samtools_index/{tax_id}_{genome_basename}_dedup.log"
 
 # --- Define Functions for Rule All ---
 # Targets are indices of sorted bam files (last step)
@@ -272,6 +271,9 @@ rule mark_duplicates_sambamba:
         # Output is the BAM file with duplicates removed
         dedup_bam = DEDUP_BAM_OUT_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        index = DEDUP_BAM_INDEX_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     params:
         # Define a temporary directory relative to the output
@@ -298,32 +300,3 @@ rule mark_duplicates_sambamba:
         "{output.dedup_bam} "
         "> {log.path} 2>&1 && "
         "rm -rf {params.tmpdir} "
-
-# --- Rule: Index Deduplicated BAM file using Samtools ---
-rule samtools_index:
-    input:
-        dedup_bam = DEDUP_BAM_OUT_PATTERN.format(
-            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
-    output:
-        index = DEDUP_BAM_INDEX_OUT_PATTERN.format(
-            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
-    log:
-        path = LOG_INDEX_PATTERN.format(
-            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
-    conda:
-         ".." / ENVS_DIR_P / "map.yaml"
-    threads: config.get("SAMTOOLS_INDEX_THREADS", 1)
-    resources:
-        mem_mb=config.get("SAMTOOLS_INDEX_MEM_MB", 2000),
-        runtime=config.get("SAMTOOLS_INDEX_RUNTIME", "20m"),
-        cpus_per_task=config.get("SAMTOOLS_INDEX_THREADS", 1)
-    shell:
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
-        "samtools index "
-        "-@ {threads} "
-        "{input.dedup_bam} "
-        "2> {log.path}"
