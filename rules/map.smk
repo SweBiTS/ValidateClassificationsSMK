@@ -121,6 +121,9 @@ SORTED_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping.so
 DEDUP_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_dedup.bam"
 DEDUP_BAM_INDEX_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_dedup.bam.bai"
 STATS_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_stats.txt"
+
+# --- Define Log Paths ---
+LOG_BBMAP_INDEX_PATTERN = "{logdir}/bbmap_index/{genome_basename}.log"
 LOG_MAP_PATTERN = "{logdir}/bbmap_map/{tax_id}_{genome_basename}.log"
 LOG_SORT_PATTERN = "{logdir}/samtools_sort/{tax_id}_{genome_basename}.log"
 LOG_MARKDUP_PATTERN = "{logdir}/sambamba_markdup/{tax_id}_{genome_basename}.log"
@@ -146,11 +149,14 @@ rule bbmap_index:
         build_id = 1,
         mem = config.get("BBMAP_INDEX_MEM", "20g")
     log:
-        path = str(LOG_DIR_P / "bbmap_index" / "{genome_basename}.log")
+        path = LOG_BBMAP_INDEX_PATTERN.format(
+            logdir=LOG_DIR_P, genome_basename="{genome_basename}"
+        )
     conda:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_INDEX_THREADS", 8)
     shell:
+        "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
         "bbmap.sh "
             "ref={input.fasta} "
@@ -161,7 +167,7 @@ rule bbmap_index:
             "pigz=t unpigz=t "
             "overwrite=t "
             f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
-            "> {log} 2>&1"
+            "> {log.path} 2>&1"
 
 
 # --- Rule: Map Reads to Reference using BBMap ---
@@ -182,8 +188,7 @@ rule bbmap_map_reads:
         mem = config.get("BBMAP_MAP_MEM", "20g"),
         minid = config["BBMAP_MINID"],
         ambig = config["BBMAP_AMBIGUOUS"],
-        pairedonly = config["BBMAP_PAIREDONLY"],
-        extra_stats = lambda wildcards, output: f"statsfile={output.stats}"
+        pairedonly = config["BBMAP_PAIREDONLY"]
     log:
         path = LOG_MAP_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
@@ -192,6 +197,7 @@ rule bbmap_map_reads:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 8)
     shell:
+        "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
         "bbmap.sh "
             "in1={input.r1} "
@@ -201,7 +207,6 @@ rule bbmap_map_reads:
             "out={output.bam} "
             "statsfile={output.stats} "
             "mappedonly=t "
-            "{params.extra_stats} "
             "minid={params.minid} "
             "ambiguous={params.ambig} "
             "pairedonly={params.pairedonly} "
@@ -210,7 +215,7 @@ rule bbmap_map_reads:
             "pigz=t unpigz=t "
             "overwrite=t "
             f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
-        "> {log} 2>&1"
+        "> {log.path} 2>&1"
 
 
 # --- Rule: Sort BAM file using Samtools ---
@@ -225,7 +230,6 @@ rule samtools_sort:
         )
     params:
         mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G"), # Memory per thread for sorting
-        extra = "" # Placeholder for extra samtools sort options if needed
     log:
         path = LOG_SORT_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
@@ -234,14 +238,14 @@ rule samtools_sort:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("SAMTOOLS_SORT_THREADS", 4)
     shell:
+        "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
         "samtools sort "
         "-@ {threads} "                 # Number of sorting threads
         "-m {params.mem_per_thread} "   # Memory per thread
         "-o {output.bam} "              # Output file
-        "{params.extra} "               # Extra options
         "{input.bam} "                  # Input file
-        "2> {log}"                      # Log stderr
+        "2> {log.path}"                 # Log stderr
 
 
 # --- Rule: Mark/Remove Duplicates using Sambamba ---
@@ -264,21 +268,22 @@ rule mark_duplicates_sambamba:
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     conda:
-         ".." / ENVS_DIR_P / "map.yaml" # Make sure sambamba is added here
+         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("SAMBAMBA_MARKDUP_THREADS", 8)
-    resources: # Define resources for SLURM profile or direct use
+    resources:
         mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 16000),
         runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "02:00:00")
     shell:
-        "/usr/bin/time -v "
+        "mkdir -p $(dirname {log.path}) && "
         "mkdir -p {params.tmpdir} && "
+        "/usr/bin/time -v "
         "sambamba markdup -t {threads} "
         "--tmpdir={params.tmpdir} "
         "--remove-duplicates "
         "{input.sorted_bam} "
         "{output.dedup_bam} "
-        "> {log} 2>&1 && "
-        "rm -rf {params.tmpdir} " # Clean up tmpdir *after* successful run
+        "> {log.path} 2>&1 && "
+        "rm -rf {params.tmpdir} "
 
 # --- Rule: Index Deduplicated BAM file using Samtools ---
 rule samtools_index:
@@ -299,10 +304,11 @@ rule samtools_index:
     threads: config.get("SAMTOOLS_INDEX_THREADS", 1)
     resources:
         mem_mb=config.get("SAMTOOLS_INDEX_MEM_MB", 2000),
-        runtime=config.get("SAMTOOLS_INDEX_RUNTIME", "00:30:00")
+        runtime=config.get("SAMTOOLS_INDEX_RUNTIME", "20m")
     shell:
+        "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
         "samtools index "
         "-@ {threads} "
         "{input.dedup_bam} "
-        "2> {log}"
+        "2> {log.path}"

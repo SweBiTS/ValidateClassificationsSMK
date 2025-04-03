@@ -3,9 +3,11 @@ cluster:
     jobscript: "slurm-jobscript.sh"
     submitcmd: "sbatch {dependencies}"
 
+
 # -- Concurrency --
 # Maximum number of jobs submitted to SLURM at once
 jobs: 200
+
 
 # -- Default Resources (Applied to all rules unless overridden) --
 default-resources:
@@ -15,28 +17,35 @@ default-resources:
   mem_mb: 4000
   cpus_per_task: 4
 
-# -- Rule-Specific Resources (Overrides defaults) --
+
+# -- Rule-Specific Resources (Overrides defaults, references config.yaml) --
 set-resources:
   bbmap_index:
-    runtime: "30m"
-    mem_mb: 22000
-    cpus_per_task: 6
+    runtime: "{BBMAP_INDEX_RUNTIME}"
+    mem_mb: "{BBMAP_INDEX_MEM_MB}"
+    cpus_per_task: "{BBMAP_INDEX_THREADS}"
 
   bbmap_map_reads:
-    runtime: "24h"
-    mem_mb: 22000
-    cpus_per_task: 16
+    runtime: "{BBMAP_MAP_RUNTIME}"
+    mem_mb: "{BBMAP_MAP_MEM_MB}"
+    cpus_per_task: "{BBMAP_MAP_THREADS}"
 
   samtools_sort:
-    runtime: "2h"
-    cpus_per_task: 6
+    runtime: "{SAMTOOLS_SORT_RUNTIME}"
+    mem_mb: evaluate("int({SAMTOOLS_SORT_THREADS}) * int({SAMTOOLS_SORT_MEM_PER_THREAD_MB})")  # Calculate total memory based on threads and mem_per_thread_mb from config.yaml
+    cpus_per_task: "{SAMTOOLS_SORT_THREADS}"
 
   mark_duplicates_sambamba:
-    mem_mb: 16000 # Or reference config: "{SAMBAMBA_MARKDUP_MEM_MB}"
-    runtime: "2h" # Or reference config
-    cpus-per-task: "{SAMBAMBA_MARKDUP_THREADS}" # Match threads
-  
+    runtime: "{SAMBAMBA_MARKDUP_RUNTIME}"
+    mem_mb: "{SAMBAMBA_MARKDUP_MEM_MB}"
+    cpus_per_task: "{SAMBAMBA_MARKDUP_THREADS}"
+
   samtools_index:
-    mem_mb: 2000
-    runtime: "1h"
-    cpus-per-task: "{SAMTOOLS_INDEX_THREADS}"
+    runtime: "{SAMTOOLS_INDEX_RUNTIME}"
+    mem_mb: "{SAMTOOLS_INDEX_MEM_MB}"
+    cpus_per_task: "{SAMTOOLS_INDEX_THREADS}"
+
+  estimate_simulation_params:
+    runtime: "{SAMTOOLS_STATS_RUNTIME}"
+    mem_mb: "{SAMTOOLS_STATS_MEM_MB}"
+    cpus_per_task: "{SAMTOOLS_STATS_THREADS}"
