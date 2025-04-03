@@ -5,6 +5,7 @@ from pathlib import Path
 import logging
 
 # TODO: Implement dynamic resource allocation that depend on the size of the input files.
+# TODO: Implement resubmission of jobs that fail, that increases the memory and/or time resources based on the "attempts" variable
 
 # ==================================================
 #      Housekeeping
@@ -155,6 +156,9 @@ rule bbmap_index:
     conda:
         ".." / ENVS_DIR_P / "map.yaml"
     threads: config.get("BBMAP_INDEX_THREADS", 8)
+    resources:
+        mem_mb=config.get("BBMAP_INDEX_MEM_MB", 22000),
+        runtime=config.get("BBMAP_INDEX_RUNTIME", "1h")
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -185,7 +189,7 @@ rule bbmap_map_reads:
         )
     params:
         build_id = 1,
-        mem = config.get("BBMAP_MAP_MEM", "20g"),
+        mem = config.get("BBMAP_MAP_MEM", "6g"),
         minid = config["BBMAP_MINID"],
         ambig = config["BBMAP_AMBIGUOUS"],
         pairedonly = config["BBMAP_PAIREDONLY"]
@@ -195,7 +199,10 @@ rule bbmap_map_reads:
         )
     conda:
         ".." / ENVS_DIR_P / "map.yaml"
-    threads: config.get("BBMAP_MAP_THREADS", 8)
+    threads: config.get("BBMAP_MAP_THREADS", 4)
+    resources:
+        mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
+        runtime=config.get("BBMAP_MAP_RUNTIME", "1h")
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -236,7 +243,10 @@ rule samtools_sort:
         )
     conda:
         ".." / ENVS_DIR_P / "map.yaml"
-    threads: config.get("SAMTOOLS_SORT_THREADS", 4)
+    threads: config.get("SAMTOOLS_SORT_THREADS", 2)
+    resources:
+        mem_mb=lambda wildcards, threads: int(threads) * int(config.get("SAMTOOLS_SORT_MEM_PER_THREAD_MB", 2048)),
+        runtime=config.get("SAMTOOLS_SORT_RUNTIME", "2h")
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -269,10 +279,10 @@ rule mark_duplicates_sambamba:
         )
     conda:
          ".." / ENVS_DIR_P / "map.yaml"
-    threads: config.get("SAMBAMBA_MARKDUP_THREADS", 8)
+    threads: config.get("SAMBAMBA_MARKDUP_THREADS", 4)
     resources:
-        mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 16000),
-        runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "02:00:00")
+        mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 8000),
+        runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "2h")
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "mkdir -p {params.tmpdir} && "

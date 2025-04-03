@@ -29,7 +29,7 @@ BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
 
 # --- Resource Configurations ---
-# These are used directly by rules AND referenced by slurm/config.yaml
+# These are used directly by the rules (and passed to SLURM)
 
 # BBMap Index Resources
 BBMAP_INDEX_MEM: "20g"  # Referenced by bbmap_index rule in map.smk
@@ -44,7 +44,7 @@ BBMAP_MAP_THREADS: 16
 BBMAP_MAP_RUNTIME: "24h"
 
 # Samtools Sort Resources
-SAMTOOLS_SORT_THREADS: 4
+SAMTOOLS_SORT_THREADS: 2
 SAMTOOLS_SORT_MEM_PER_THREAD: "2G"
 SAMTOOLS_SORT_MEM_PER_THREAD_MB: 2048 # Keep for SLURM calculation
 SAMTOOLS_SORT_RUNTIME: "2h"
@@ -57,7 +57,7 @@ SAMBAMBA_MARKDUP_RUNTIME: "2h"
 # Samtools Index Resources
 SAMTOOLS_INDEX_THREADS: 1
 SAMTOOLS_INDEX_MEM_MB: 2000
-SAMTOOLS_INDEX_RUNTIME: "30m"
+SAMTOOLS_INDEX_RUNTIME: "20m"
 
 # Samtools Stats Resources
 SAMTOOLS_STATS_MEM_MB: 2000

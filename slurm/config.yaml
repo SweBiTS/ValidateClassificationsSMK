@@ -3,11 +3,9 @@ cluster:
     jobscript: "slurm-jobscript.sh"
     submitcmd: "sbatch {dependencies}"
 
-
 # -- Concurrency --
 # Maximum number of jobs submitted to SLURM at once
 jobs: 200
-
 
 # -- Default Resources (Applied to all rules unless overridden) --
 default-resources:
@@ -15,37 +13,7 @@ default-resources:
   slurm_partition: "shared"
   runtime: "1h"
   mem_mb: 4000
-  cpus_per_task: 4
-
+  cpus_per_task: 84
 
 # -- Rule-Specific Resources (Overrides defaults, references config.yaml) --
-set-resources:
-  bbmap_index:
-    runtime: "{BBMAP_INDEX_RUNTIME}"
-    mem_mb: "{BBMAP_INDEX_MEM_MB}"
-    cpus_per_task: "{BBMAP_INDEX_THREADS}"
-
-  bbmap_map_reads:
-    runtime: "{BBMAP_MAP_RUNTIME}"
-    mem_mb: "{BBMAP_MAP_MEM_MB}"
-    cpus_per_task: "{BBMAP_MAP_THREADS}"
-
-  samtools_sort:
-    runtime: "{SAMTOOLS_SORT_RUNTIME}"
-    mem_mb: evaluate("int({SAMTOOLS_SORT_THREADS}) * int({SAMTOOLS_SORT_MEM_PER_THREAD_MB})")  # Calculate total memory based on threads and mem_per_thread_mb from config.yaml
-    cpus_per_task: "{SAMTOOLS_SORT_THREADS}"
-
-  mark_duplicates_sambamba:
-    runtime: "{SAMBAMBA_MARKDUP_RUNTIME}"
-    mem_mb: "{SAMBAMBA_MARKDUP_MEM_MB}"
-    cpus_per_task: "{SAMBAMBA_MARKDUP_THREADS}"
-
-  samtools_index:
-    runtime: "{SAMTOOLS_INDEX_RUNTIME}"
-    mem_mb: "{SAMTOOLS_INDEX_MEM_MB}"
-    cpus_per_task: "{SAMTOOLS_INDEX_THREADS}"
-
-  estimate_simulation_params:
-    runtime: "{SAMTOOLS_STATS_RUNTIME}"
-    mem_mb: "{SAMTOOLS_STATS_MEM_MB}"
-    cpus_per_task: "{SAMTOOLS_STATS_THREADS}"
+# set-resources:

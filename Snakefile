@@ -5,12 +5,6 @@ import sys
 # --- Configuration ---
 configfile: "config.yaml"
 
-# --- Wildcard constraints ---
-wildcard_constraints:
-    # For the FASTA file basename:
-    # Allow letters (upper/lower), numbers, underscore, period, hyphen
-    genome_basename=r"[a-zA-Z0-9_.\-]+"
-
 # --- Setup Logging ---
 # Get log level string from config, default to INFO, convert to upper case
 log_level_str = config.get("LOG_LEVEL", "INFO").upper()
