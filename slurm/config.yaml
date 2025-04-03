@@ -13,7 +13,7 @@ default-resources:
   slurm_partition: "shared"
   runtime: "1h"
   mem_mb: 4000
-  cpus_per_task: 84
+  cpus_per_task: 8
 
 # -- Rule-Specific Resources (Overrides defaults, references config.yaml) --
 # set-resources:

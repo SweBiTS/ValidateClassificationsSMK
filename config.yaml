@@ -34,7 +34,7 @@ BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 # BBMap Index Resources
 BBMAP_INDEX_MEM: "20g"  # Referenced by bbmap_index rule in map.smk
 BBMAP_INDEX_MEM_MB: 22000
-BBMAP_INDEX_THREADS: 8
+BBMAP_INDEX_THREADS: 4
 BBMAP_INDEX_RUNTIME: "1h"
 
 # BBMap Map Reads Resources

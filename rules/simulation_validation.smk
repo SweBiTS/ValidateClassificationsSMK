@@ -44,6 +44,7 @@ rule estimate_simulation_params:
     threads: config.get("SAMTOOLS_STATS_THREADS", 1)
     resources:
         mem_mb=config.get("SAMTOOLS_STATS_MEM_MB", 2000),
-        runtime=config.get("SAMTOOLS_STATS_RUNTIME", "20m")
+        runtime=config.get("SAMTOOLS_STATS_RUNTIME", "20m"),
+        cpus_per_task=config.get("SAMTOOLS_STATS_THREADS", 1)
     script:
         "../scripts/run_samtools_stats_parse.py"

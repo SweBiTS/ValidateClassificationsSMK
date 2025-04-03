@@ -155,10 +155,11 @@ rule bbmap_index:
         )
     conda:
         ".." / ENVS_DIR_P / "map.yaml"
-    threads: config.get("BBMAP_INDEX_THREADS", 8)
+    threads: config.get("BBMAP_INDEX_THREADS", 4)
     resources:
         mem_mb=config.get("BBMAP_INDEX_MEM_MB", 22000),
-        runtime=config.get("BBMAP_INDEX_RUNTIME", "1h")
+        runtime=config.get("BBMAP_INDEX_RUNTIME", "1h"),
+        cpus_per_task=config.get("BBMAP_INDEX_THREADS", 4)
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -202,7 +203,8 @@ rule bbmap_map_reads:
     threads: config.get("BBMAP_MAP_THREADS", 4)
     resources:
         mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
-        runtime=config.get("BBMAP_MAP_RUNTIME", "1h")
+        runtime=config.get("BBMAP_MAP_RUNTIME", "1h"),
+        cpus_per_task=config.get("BBMAP_MAP_THREADS", 4)
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -246,7 +248,8 @@ rule samtools_sort:
     threads: config.get("SAMTOOLS_SORT_THREADS", 2)
     resources:
         mem_mb=lambda wildcards, threads: int(threads) * int(config.get("SAMTOOLS_SORT_MEM_PER_THREAD_MB", 2048)),
-        runtime=config.get("SAMTOOLS_SORT_RUNTIME", "2h")
+        runtime=config.get("SAMTOOLS_SORT_RUNTIME", "2h"),
+        cpus_per_task=config.get("SAMTOOLS_SORT_THREADS", 2)
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -282,7 +285,8 @@ rule mark_duplicates_sambamba:
     threads: config.get("SAMBAMBA_MARKDUP_THREADS", 4)
     resources:
         mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 8000),
-        runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "2h")
+        runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "2h"),
+        cpus_per_task=config.get("SAMBAMBA_MARKDUP_THREADS", 4)
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "mkdir -p {params.tmpdir} && "
@@ -314,7 +318,8 @@ rule samtools_index:
     threads: config.get("SAMTOOLS_INDEX_THREADS", 1)
     resources:
         mem_mb=config.get("SAMTOOLS_INDEX_MEM_MB", 2000),
-        runtime=config.get("SAMTOOLS_INDEX_RUNTIME", "20m")
+        runtime=config.get("SAMTOOLS_INDEX_RUNTIME", "20m"),
+        cpus_per_task=config.get("SAMTOOLS_INDEX_THREADS", 1)
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
