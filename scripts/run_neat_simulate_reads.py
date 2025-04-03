@@ -91,7 +91,7 @@ except Exception as e:
 
 # --- Construct NEAT Command ---
 cmd_neat = [
-    "/usr/bin/time -v",
+    "/usr/bin/time", "-v",
     "neat",
     "--log-name", f'{log_file}.neat',  # Log file for NEAT (for some reason NEAT outputs ending .log instead of .neat)
     "read-simulator",
