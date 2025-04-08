@@ -25,3 +25,4 @@ supporting_files/genomes/*
 
 # Misc
 .vscode/*
+kraken_db/

@@ -28,6 +28,21 @@ BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, 
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
 
+# --- Kraken2 Settings ---
+KRAKEN2_DB_PATH: "kraken_db/test_db"
+# Optional: Path to specific kraken2 executable.
+# If commented out or null, 'kraken2' from conda env will be used.
+KRAKEN2_EXEC: "../../bin/kraken2_SweBiTS_v2.1.3/kraken2"
+# Example: KRAKEN2_EXEC: "/path/to/my/custom/kraken2"
+# TODO: Add confidence and or minimum hit groups here? The classifiable region should depend on the minimum hit groups at the very least.
+
+
+# --- Taxonomy Paths ---
+# Required by selmeout.py script
+TAXONOMY_NODES_PATH: "kraken_db/test_db/taxonomy/nodes.dmp"
+TAXONOMY_NAMES_PATH: "kraken_db/test_db/taxonomy/names.dmp"
+
+
 # --- Resource Configurations ---
 # These are used directly by the rules (and passed to SLURM)
 
@@ -64,3 +79,23 @@ SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (INTEGER)
 NEAT_SIM_MEM_MB: 4000
 NEAT_SIM_RUNTIME: "12h"
 NEAT_SIM_THREADS: 1     # NEAT simulation is single-threaded currently, but intends to be parallelized in the future
+
+# Clean FASTQ Headers Resources (pigz + sed)
+CLEAN_FASTQ_THREADS: 1
+CLEAN_FASTQ_MEM_MB: 1000
+CLEAN_FASTQ_RUNTIME: "60m"
+
+# Kraken 2 Resources
+KRAKEN2_THREADS: 8
+KRAKEN2_MEM_MB: 7000
+KRAKEN2_RUNTIME: "20m"
+
+# selmeout.py (Extract IDs) Resources
+EXTRACT_IDS_THREADS: 1
+EXTRACT_IDS_MEM_MB: 3000
+EXTRACT_IDS_RUNTIME: "60m"
+
+# seqtk subseq (Filtering FASTQ) Resources
+SEQTK_THREADS: 1
+SEQTK_MEM_MB: 2000
+SEQTK_RUNTIME: "60m"

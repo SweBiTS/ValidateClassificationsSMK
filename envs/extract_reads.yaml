@@ -1,0 +1,11 @@
+
+name: extract_reads
+channels:
+    - bioconda
+    - conda-forge
+    - defaults
+dependencies:
+    - seqtk=1.3
+    - dataclasses
+    - stringmeup
+    - pigz

@@ -77,6 +77,7 @@ neat_config_dict = {
     'fragment_st_dev': float(stdev_ins),
     'avg_seq_error': 0,
     'mutation_rate': 0,
+    'rescale_qualities': True,
     'threads': int(snk_threads)
     # Add 'rng_seed' here if reproducible simulation needed
 }
