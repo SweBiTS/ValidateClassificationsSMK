@@ -69,9 +69,6 @@ else:
 include: "rules/map.smk"
 include: "rules/simulation_validation.smk"
 
-# Define the final output target for the validation part
-FINAL_VALIDATION_REPORT = str(OUTPUT_DIR_P / "validation" / "coverage_validation_summary.tsv")
-
 # --- Define Conditional Targets for Rule All ---
 def get_final_targets():
     # Always include the main mapping output indices (map.smk)
@@ -79,8 +76,11 @@ def get_final_targets():
 
     # Conditionally add the single final validation report file
     if config.get("RUN_VALIDATION", True):
-        logger.info("Adding final validation summary report to rule all targets.")
-        targets.append(FINAL_VALIDATION_REPORT)
+        logger.info("Adding final validation summary reports to rule all targets.")
+        final_validation_outputs = get_all_target_outputs(
+            mapping_spec_data, PER_SAMPLE_SUMMARY_PATTERN
+        )
+        targets.extend(final_validation_outputs)
     else:
          logger.info("Skipping validation pipeline targets for rule all.")
 

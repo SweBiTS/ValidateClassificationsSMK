@@ -115,3 +115,20 @@ CALC_SIM_COV_RUNTIME: "30m"
 K2MASK_THREADS: 1
 K2MASK_MEM_MB: 2000
 K2MASK_RUNTIME: "60m"
+
+# Bedtools Subtract Resources (rule: define_classifiable_regions)
+BEDTOOLS_SUBTRACT_THREADS: 1
+BEDTOOLS_SUBTRACT_MEM_MB: 2000
+BEDTOOLS_SUBTRACT_RUNTIME: "15m"
+
+# Bedtools Intersect (find real reads overlapping classifiable 
+# regions, rule: intersect_real_reads_with_classifiable_regions) Resources
+INTERSECT_READS_THREADS: 1
+INTERSECT_READS_MEM_MB: 2000
+INTERSECT_READS_RUNTIME: "30m"
+
+# Summarize Coverage of Classifiable Regions 
+# (rule: summarize_validation_coverage) Resources
+SUMMARIZE_VALIDATION_THREADS: 1
+SUMMARIZE_VALIDATION_MEM_MB: 2000
+SUMMARIZE_VALIDATION_RUNTIME: "20m"

@@ -33,6 +33,9 @@ SORTED_MAPPED_SIM_BAM_PATTERN = "{outdir}/validation/mapped_sim/{tax_id}/{genome
 MASKED_REGIONS_BED_PATTERN = "{outdir}/validation/masked_regions/{genome_basename}.masked.bed"
 COVERED_REGIONS_BED_PATTERN = "{outdir}/validation/coverage_sim/{tax_id}/{genome_basename}/covered_regions.bed"
 MASKED_FASTA_PATTERN = "{outdir}/validation/masked_regions/{genome_basename}.masked_lowercase.fasta"
+CLASSIFIABLE_REGIONS_BED_PATTERN = "{outdir}/validation/classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed"
+OVERLAPPING_READS_BAM_PATTERN = "{outdir}/validation/final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam"
+PER_SAMPLE_SUMMARY_PATTERN = "{outdir}/validation/summary_reports/{tax_id}/{genome_basename}/summary.tsv"
 
 # --- Define Log Patterns ---
 LOG_ESTIMATE_PARAMS_PATTERN = "{logdir}/estimate_sim_params/{tax_id}/{genome_basename}.log"
@@ -45,6 +48,9 @@ LOG_MAP_SIM_PATTERN = "{logdir}/map_simulated/{tax_id}/{genome_basename}.log"
 LOG_SORT_SIM_PATTERN = "{logdir}/sort_simulated/{tax_id}/{genome_basename}.log"
 LOG_CALC_SIM_COV_PATTERN = "{logdir}/calculate_sim_coverage/{tax_id}/{genome_basename}.log"
 LOG_MASKED_REGIONS_PATTERN = "{logdir}/find_masked_regions/{genome_basename}.log"
+LOG_DEFINE_CLASSIFIABLE_PATTERN = "{logdir}/define_classifiable_regions/{tax_id}/{genome_basename}.log"
+LOG_INTERSECT_READS_PATTERN = "{logdir}/intersect_reads/{tax_id}/{genome_basename}.log"
+LOG_SUMMARIZE_VALIDATION_PATTERN = "{logdir}/summarize_validation/{tax_id}/{genome_basename}.log"
 
 # --- Rule: Estimate Simulation Parameters using samtools stats ---
 rule estimate_simulation_params:
@@ -440,3 +446,108 @@ rule find_masked_regions:
         cpus_per_task=config.get("K2MASK_THREADS", 1)
     script:
         "../scripts/fasta_to_masked_bed.py"
+
+# --- Rule: Define Classifiable Regions (subtract the masked regions (k2mask)) ---
+rule define_classifiable_regions:
+    input:
+        # Regions covered by correctly classified simulated reads
+        coverage_bed = COVERED_REGIONS_BED_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        # BED file of low-complexity regions (output of find_masked_regions)
+        masked_bed = MASKED_REGIONS_BED_PATTERN.format(
+            outdir=OUTPUT_DIR_P, genome_basename="{genome_basename}"
+        )
+    output:
+        # Final BED file of classifiable regions, i.e., regions covered by 
+        # simulated and correctly kraken classified reads AND that are not masked
+        classifiable_bed = CLASSIFIABLE_REGIONS_BED_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    log:
+        path = LOG_DEFINE_CLASSIFIABLE_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "analysis.yaml"
+    threads: config.get("BEDTOOLS_SUBTRACT_THREADS", 1)
+    resources:
+        runtime=config.get("BEDTOOLS_SUBTRACT_RUNTIME", "15m"),
+        mem_mb=config.get("BEDTOOLS_SUBTRACT_MEM_MB", 2000),
+        cpus_per_task=config.get("BEDTOOLS_SUBTRACT_THREADS", 1)
+    shell:
+        # Subtract masked regions (-b) from covered regions (-a)
+        "mkdir -p $(dirname {output.classifiable_bed}) && "
+        "mkdir -p $(dirname {log.path}) && "
+        "bedtools subtract -a {input.coverage_bed} -b {input.masked_bed} "
+        "> {output.classifiable_bed} "
+        "2> {log.path}"
+
+# --- Rule: Intersect Real Reads with Classifiable Regions ---
+rule intersect_real_reads_with_classifiable_regions:
+    input:
+        # Use the deduplicated BAM of REAL reads from map.smk
+        bam = DEDUP_BAM_OUT_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        # Use the final classifiable regions BED
+        regions = CLASSIFIABLE_REGIONS_BED_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    output:
+        # Output BAM containing unique reads overlapping classifiable regions
+        overlapping_bam = OVERLAPPING_READS_BAM_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    log:
+        path = LOG_INTERSECT_READS_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "analysis.yaml"
+    threads: config.get("INTERSECT_READS_THREADS", 1)
+    resources:
+        runtime=config.get("INTERSECT_READS_RUNTIME", "30m"),
+        mem_mb=config.get("INTERSECT_READS_MEM_MB", 2000),
+        cpus_per_task=config.get("INTERSECT_READS_THREADS", 1)
+    shell:
+        # Use bedtools intersect -u; output is BAM. Use -sorted for speed.
+        "mkdir -p $(dirname {output.overlapping_bam}) && "
+        "mkdir -p $(dirname {log.path}) && "
+        "bedtools intersect "
+            "-a {input.bam} "               # Input BAM (real reads)
+            "-b {input.regions} "           # Classifiable regions BED
+            "-u "                           # Report each alignment record in -a once if *any* overlap exists
+            "-sorted "                      # Assume inputs are sorted for speed
+            "-wa "                          # Write the original BAM records
+            "> {output.overlapping_bam} "
+            "2> {log.path}"
+
+# --- Rule: Summarize Validation Coverage Per Contig ---
+rule summarize_validation_coverage:
+    input:
+        # BAM containing only alignment records overlapping classifiable regions
+        overlapping_bam = OVERLAPPING_READS_BAM_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        # BED file defining the classifiable regions (to calculate length)
+        classifiable_bed = CLASSIFIABLE_REGIONS_BED_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    output:
+        summary_tsv = PER_SAMPLE_SUMMARY_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    log:
+        path = LOG_SUMMARIZE_VALIDATION_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "analysis.yaml"
+    threads: config.get("SUMMARIZE_VALIDATION_THREADS", 1)
+    resources:
+        runtime=config.get("SUMMARIZE_VALIDATION_RUNTIME", "20m"), # Integer minutes
+        mem_mb=config.get("SUMMARIZE_VALIDATION_MEM_MB", 2000),
+        cpus_per_task=config.get("SUMMARIZE_VALIDATION_THREADS", 1)
+    script:
+        "../scripts/summarize_validation.py"
