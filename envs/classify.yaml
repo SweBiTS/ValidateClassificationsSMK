@@ -4,3 +4,4 @@ channels:
   - defaults
 dependencies:
   - kraken2=2.3
+  - python>=3.8

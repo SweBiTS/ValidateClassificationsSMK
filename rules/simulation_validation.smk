@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__) # Use module-specific logger
 SAMTOOLS_STATS_OUT_PATTERN = "{outdir}/validation/stats/{tax_id}/{genome_basename}/samtools_stats.txt"
 SIM_PARAMS_OUT_PATTERN = "{outdir}/validation/params/{tax_id}/{genome_basename}/sim_params.json"
 LOG_ESTIMATE_PARAMS_PATTERN = "{logdir}/estimate_sim_params/{tax_id}/{genome_basename}.log"
-SIM_READS_R1_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_raw_r1.fastq.gz"
-SIM_READS_R2_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_raw_r2.fastq.gz"
+SIM_READS_R1_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_r1.fastq.gz"
+SIM_READS_R2_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_r2.fastq.gz"
 NEAT_CONFIG_YAML_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/neat_config.yml"
 LOG_SIMULATE_READS_PATTERN = "{logdir}/simulate_reads/{tax_id}/{genome_basename}.log"
-CLEANED_SIM_READS_R1_PATTERN = "{outdir}/validation/filtered_reads/{tax_id}/{genome_basename}/sim_R1.fq.gz"
-CLEANED_SIM_READS_R2_PATTERN = "{outdir}/validation/filtered_reads/{tax_id}/{genome_basename}/sim_R2.fq.gz"
+CLEANED_SIM_READS_R1_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_clean_r1.fq.gz"
+CLEANED_SIM_READS_R2_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_clean_r2.fq.gz"
 LOG_CLEAN_FASTQ_PATTERN = "{logdir}/clean_fastq/{tax_id}/{genome_basename}.log"
 KRAKEN_OUT_SIM_PATTERN = "{outdir}/validation/kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.out"
 KRAKEN_REPORT_SIM_PATTERN = "{outdir}/validation/kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.report"
@@ -33,6 +33,12 @@ LOG_EXTRACT_IDS_PATTERN = "{logdir}/extract_ids/{tax_id}/{genome_basename}.log"
 FILTERED_SIM_READS_R1_PATTERN = "{outdir}/validation/filtered_reads/{tax_id}/{genome_basename}/sim_correct_R1.fq.gz"
 FILTERED_SIM_READS_R2_PATTERN = "{outdir}/validation/filtered_reads/{tax_id}/{genome_basename}/sim_correct_R2.fq.gz"
 LOG_FILTER_FASTQ_PATTERN = "{logdir}/filter_fastq/{tax_id}/{genome_basename}.log"
+MAPPED_SIM_BAM_PATTERN = "{outdir}/validation/mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.bam"
+MAPPED_SIM_STATS_PATTERN = "{outdir}/validation/mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim_stats.txt"
+LOG_MAP_SIM_PATTERN = "{logdir}/map_simulated/{tax_id}/{genome_basename}.log"
+MASKED_REGIONS_BED_PATTERN = "{outdir}/validation/masked_regions/{genome_basename}.masked.bed"
+MASKED_FASTA_PATTERN = "{outdir}/validation/masked_regions/{genome_basename}.masked_lowercase.fasta"
+LOG_MASKED_REGIONS_PATTERN = "{logdir}/find_masked_regions/{genome_basename}.log"
 
 
 # --- Rule: Estimate Simulation Parameters using samtools stats ---
@@ -75,12 +81,12 @@ rule simulate_reads_neat:
         )
     output:
         # Output simulated reads (fastq.gz files)
-        r1 = temp(SIM_READS_R1_PATTERN.format(
+        r1 = SIM_READS_R1_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )),
-        r2 = temp(SIM_READS_R2_PATTERN.format(
+        ),
+        r2 = SIM_READS_R2_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )),
+        ),
         neat_config_yaml = NEAT_CONFIG_YAML_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
@@ -109,7 +115,7 @@ rule clean_fastq_headers:
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     output:
-        # Output are cleaned FASTQ files, marked as temp
+        # Output are cleaned FASTQ files
         r1 = CLEANED_SIM_READS_R1_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         ),
@@ -128,14 +134,22 @@ rule clean_fastq_headers:
         mem_mb=config.get("CLEAN_FASTQ_MEM_MB", 1000),
         cpus_per_task=config.get("CLEAN_FASTQ_THREADS", 1)
     shell:
-        # Use pigz for decompression/compression, sed for substitution
-        # Redirect stderr for the whole block to the log file
-        "mkdir -p $(dirname {output.r1}) && "
-        "mkdir -p $(dirname {log.path}) && "
-        "{{ "
-            "(pigz -dc {input.r1} | sed -E 's/^(@[^[:space:]]+)\/[12]([[:space:]].*|$)/\1\2/' | pigz -c > {output.r1}) && "
-            "(pigz -dc {input.r2} | sed -E 's/^(@[^[:space:]]+)\/[12]([[:space:]].*|$)/\1\2/' | pigz -c > {output.r2}) ; "
-        "}} 2> {log.path}"
+        r""" # <-- Add 'r' here to make it a raw string
+        mkdir -p $(dirname {output.r1}) &&
+        mkdir -p $(dirname {log.path}) &&
+        {{
+            (pigz -dc {input.r1} | awk 'NR % 4 == 1 {{sub(/\/[12]$/, "", $1)}} {{print}}' | pigz -c > {output.r1}) &&
+            (pigz -dc {input.r2} | awk 'NR % 4 == 1 {{sub(/\/[12]$/, "", $1)}} {{print}}' | pigz -c > {output.r2}) ;
+        }} 2> {log.path}
+        """ # <-- Closing triple quote
+        # "mkdir -p $(dirname {output.r1}) && "
+        # "mkdir -p $(dirname {log.path}) && "
+        # "{{ "
+        #     # R1 pipeline
+        #     "(pigz -dc {input.r1} | awk 'NR % 4 == 1 {{sub(/\/[12]$/, \"\", $1)}} {{print}}' | pigz -c > {output.r1}) && "
+        #     # R2 pipeline
+        #     "(pigz -dc {input.r2} | awk 'NR % 4 == 1 {{sub(/\/[12]$/, \"\", $1)}} {{print}}' | pigz -c > {output.r2}) ; "
+        # "}} 2> {log.path}" # Redirect combined stderr
 
 # --- Rule: Classify Simulated Reads using Kraken2 ---
 rule classify_simulated:
@@ -156,13 +170,14 @@ rule classify_simulated:
     params:
         db_path = config["KRAKEN2_DB_PATH"],
         # Determine executable path: use specified path or default 'kraken2' command
-        executable = config.get("KRAKEN2_EXEC", "kraken2")
+        # Path already validated in main Snakefile, if no path is given we assume conda execution
+        executable = str(Path(config["KRAKEN2_BIN_DIR"]) / "kraken2") if config.get("KRAKEN2_BIN_DIR") else "kraken2"
     log:
         path = LOG_KRAKEN2_SIM_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     conda:
-        ".." / ENVS_DIR_P / "classify.yaml" if not config.get("KRAKEN2_EXEC") else None
+        ".." / ENVS_DIR_P / "classify.yaml" if not config.get("KRAKEN2_BIN_DIR") else None
     threads: config.get("KRAKEN2_THREADS", 8)
     resources:
         runtime=config.get("KRAKEN2_RUNTIME", "2h"),
@@ -268,3 +283,94 @@ rule filter_fastq_with_seqtk:
             "( /usr/bin/time -v seqtk subseq {input.r2} <(cut -f 3 {input.read_ids}) | pigz -c > {output.r2} ) ; "
         # Redirect stderr for the entire brace group to the log file
         "}} 2> {log.path}"
+
+# In rules/simulation_validation.smk
+
+# --- Rule: Map Correctly Classified Simulated Reads using BBMap ---
+rule map_correct_simulated:
+    input:
+        # Use the filtered FASTQ files from seqtk step
+        r1 = FILTERED_SIM_READS_R1_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        r2 = FILTERED_SIM_READS_R2_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        # Reference the index created by bbmap_index rule in map.smk
+        idx_dir = rules.bbmap_index.output.idx_dir # Uses {genome_basename} wildcard
+    output:
+        # Output BAM and mapping stats
+        bam = MAPPED_SIM_BAM_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        ),
+        stats = MAPPED_SIM_STATS_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    params:
+        build_id = 1, # Assuming build_id is always 1 for this workflow
+        mem = config.get("BBMAP_MAP_MEM", "20g"),
+        minid = config["BBMAP_MINID"],
+        pairedonly = config["BBMAP_PAIREDONLY"]
+    log:
+        path = LOG_MAP_SIM_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "map.yaml"
+    threads: config.get("BBMAP_MAP_THREADS", 4)
+    resources:
+        runtime=config.get("BBMAP_MAP_RUNTIME", "1h"),
+        mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
+        cpus_per_task=config.get("BBMAP_MAP_THREADS", 4)
+    shell:
+        "mkdir -p $(dirname {output.bam}) && "
+        "mkdir -p $(dirname {log.path}) && "
+        "/usr/bin/time -v "
+        "bbmap.sh "
+            "in1={input.r1} "
+            "in2={input.r2} "
+            "path={input.idx_dir} "
+            "build={params.build_id} "
+            "out={output.bam} "
+            "statsfile={output.stats} "
+            "mappedonly=t "
+            "minid={params.minid} "
+            "ambiguous=random "
+            "pairedonly={params.pairedonly} "
+            "-Xmx{params.mem} "
+            "threads={threads} "
+            "pigz=t unpigz=t "
+            "overwrite=t "
+            f"{BBMAP_JNI_FLAG} "
+            "> {log.path} 2>&1" # Redirect stderr to log
+
+# --- Rule: Identify Masked Regions using k2mask ---
+rule find_masked_regions:
+    input:
+        # Original reference genome
+        ref_fasta = get_actual_fasta_path
+    output:
+        # Final BED file of masked regions
+        masked_bed = MASKED_REGIONS_BED_PATTERN.format(
+            outdir=OUTPUT_DIR_P, genome_basename="{genome_basename}"
+        ),
+        # Intermediate lowercase masked fasta
+        masked_fasta = MASKED_FASTA_PATTERN.format(
+            outdir=OUTPUT_DIR_P, genome_basename="{genome_basename}"
+        )
+    params:
+        # Determine k2mask executable path (uses KRAKEN2_BIN_DIR if set, else 'k2mask')
+        k2mask_exec = str(Path(config["KRAKEN2_BIN_DIR"]) / "k2mask") if config.get("KRAKEN2_BIN_DIR") else "k2mask"
+    log:
+        path = LOG_MASKED_REGIONS_PATTERN.format(
+            logdir=LOG_DIR_P, genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "classify.yaml" if not config.get("KRAKEN2_BIN_DIR") else None
+    threads: config.get("K2MASK_THREADS", 1)
+    resources:
+        runtime=config.get("K2MASK_RUNTIME", "60m"),
+        mem_mb=config.get("K2MASK_MEM_MB", 2000),
+        cpus_per_task=config.get("K2MASK_THREADS", 1)
+    script:
+        "../scripts/fasta_to_masked_bed.py"

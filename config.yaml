@@ -2,6 +2,12 @@
 # Run configuration - Validate Classifications
 ##############################################
 
+# --- Workflow Mode ---
+# Set to true or false.
+# false: only map reads (map.smk).
+# true: run the validation steps (simulation_validation.smk; simulation of reads, classification, and estimation of classifiable regions)
+RUN_VALIDATION: true
+
 # --- General Settings ---
 LOG_LEVEL: "INFO"   # Logging verbosity: {DEBUG, INFO, WARNING, ERROR, CRITICAL}
 
@@ -30,10 +36,10 @@ BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
 # --- Kraken2 Settings ---
 KRAKEN2_DB_PATH: "kraken_db/test_db"
-# Optional: Path to specific kraken2 executable.
-# If commented out or null, 'kraken2' from conda env will be used.
-KRAKEN2_EXEC: "../../bin/kraken2_SweBiTS_v2.1.3/kraken2"
-# Example: KRAKEN2_EXEC: "/path/to/my/custom/kraken2"
+# Optional: Path to directory containing kraken2 and k2mask executables.
+# If null or commented out, executables are assumed to be in PATH (via conda).
+KRAKEN2_BIN_DIR: "../../bin/kraken2_SweBiTS_v2.1.3"
+# KRAKEN2_BIN_DIR: null # Use this line to default to conda
 # TODO: Add confidence and or minimum hit groups here? The classifiable region should depend on the minimum hit groups at the very least.
 
 
@@ -89,6 +95,11 @@ CLEAN_FASTQ_RUNTIME: "60m"
 KRAKEN2_THREADS: 8
 KRAKEN2_MEM_MB: 7000
 KRAKEN2_RUNTIME: "20m"
+
+# Resources for k2mask (rule: find_masked_regions)
+K2MASK_THREADS: 1
+K2MASK_MEM_MB: 2000
+K2MASK_RUNTIME: "60m"
 
 # selmeout.py (Extract IDs) Resources
 EXTRACT_IDS_THREADS: 1

@@ -38,11 +38,32 @@ GENOMES_DIR_P = Path(config["GENOMES_DIR"])
 ENVS_DIR_P = Path(config["ENVS_DIR"])
 
 logging.info(f"Input directory: {INPUT_DIR_P}")
+logging.info(f"Input directory: {INPUT_DIR_P}")
 logging.info(f"Output directory: {OUTPUT_DIR_P}")
 logging.info(f"Log directory: {LOG_DIR_P}")
 logging.info(f"Index directory (BBMap): {INDEX_DIR_BBMAP_P}")
 logging.info(f"Genomes directory: {GENOMES_DIR_P}")
 logging.info(f"Conda environments directory: {ENVS_DIR_P}")
+
+# --- Validate Kraken2 Path (CONDITIONAL on workflow mode in the main config) ---
+# Only validate if validation is requested AND a specific binary dir is given
+if config.get("RUN_VALIDATION", True) and config.get("KRAKEN2_BIN_DIR"):
+    kraken2_bin_dir = Path(config["KRAKEN2_BIN_DIR"]).resolve()
+    logger.info(f"RUN_VALIDATION is true and KRAKEN2_BIN_DIR specified. Validating provided Kraken 2 path: {kraken2_bin_dir}")
+    if not kraken2_bin_dir.is_dir():
+        sys.exit(f"ERROR: KRAKEN2_BIN_DIR is not a valid directory: {kraken2_bin_dir}")
+    kraken2_exe_path = kraken2_bin_dir / "kraken2"
+    k2mask_exe_path = kraken2_bin_dir / "k2mask"
+    if not kraken2_exe_path.is_file() or not os.access(kraken2_exe_path, os.X_OK):
+         sys.exit(f"ERROR: 'kraken2' not found or not executable in {kraken2_bin_dir}")
+    if not k2mask_exe_path.is_file() or not os.access(k2mask_exe_path, os.X_OK):
+         sys.exit(f"ERROR: 'k2mask' not found or not executable in {kraken2_bin_dir}")
+    logger.info(f"Validated that Kraken 2 executables are found in the specified directory.")
+elif config.get("RUN_VALIDATION", True):
+    logger.info("RUN_VALIDATION is true, workflow will run mapping-based classification validation.")
+    logger.info("KRAKEN2_BIN_DIR not set. Rules will rely on conda environment for Kraken 2 tools.")
+else:
+    logger.info("RUN_VALIDATION is false, workflow will only run the mapping pipeline.")
 
 # --- Include Rule Modules ---
 include: "rules/map.smk"
@@ -51,14 +72,23 @@ include: "rules/simulation_validation.smk"
 # Define the final output target for the validation part
 FINAL_VALIDATION_REPORT = str(OUTPUT_DIR_P / "validation" / "coverage_validation_summary.tsv")
 
+# --- Define Conditional Targets for Rule All ---
+def get_final_targets():
+    # Always include the main mapping output indices (map.smk)
+    targets = get_all_target_indices()
+
+    # Conditionally add the single final validation report file
+    if config.get("RUN_VALIDATION", True):
+        logger.info("Adding final validation summary report to rule all targets.")
+        targets.append(FINAL_VALIDATION_REPORT)
+    else:
+         logger.info("Skipping validation pipeline targets for rule all.")
+
+    return targets
+
 # --- Rule All: Defines the final targets of the workflow ---
 localrules: all
 
 rule all:
     input:
-        # Call the function(s) defined in map.smk
-        get_all_target_indices(),
-        
-        # Add the explicit path to the final validation report
-        #FINAL_VALIDATION_REPORT
-        # get_all_target_stats()
+        get_final_targets()
