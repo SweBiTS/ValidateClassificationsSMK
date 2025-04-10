@@ -123,7 +123,7 @@ DEDUP_BAM_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_ded
 DEDUP_BAM_INDEX_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_dedup.bam.bai"
 STATS_OUT_PATTERN = "{outdir}/mapping/{tax_id}/{genome_basename}/mapping_stats.txt"
 
-# --- Define Log Paths ---
+# --- Define Log Patterns ---
 LOG_BBMAP_INDEX_PATTERN = "{logdir}/bbmap_index/{genome_basename}.log"
 LOG_MAP_PATTERN = "{logdir}/bbmap_map/{tax_id}_{genome_basename}.log"
 LOG_SORT_PATTERN = "{logdir}/samtools_sort/{tax_id}_{genome_basename}.log"

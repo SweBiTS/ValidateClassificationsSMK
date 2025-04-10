@@ -96,11 +96,6 @@ KRAKEN2_THREADS: 8
 KRAKEN2_MEM_MB: 7000
 KRAKEN2_RUNTIME: "20m"
 
-# Resources for k2mask (rule: find_masked_regions)
-K2MASK_THREADS: 1
-K2MASK_MEM_MB: 2000
-K2MASK_RUNTIME: "60m"
-
 # selmeout.py (Extract IDs) Resources
 EXTRACT_IDS_THREADS: 1
 EXTRACT_IDS_MEM_MB: 3000
@@ -110,3 +105,13 @@ EXTRACT_IDS_RUNTIME: "60m"
 SEQTK_THREADS: 1
 SEQTK_MEM_MB: 2000
 SEQTK_RUNTIME: "60m"
+
+# Bedtools GenomeCov/Merge Resources (calculate_simulated_coverage)
+CALC_SIM_COV_THREADS: 1
+CALC_SIM_COV_MEM_MB: 2000
+CALC_SIM_COV_RUNTIME: "30m"
+
+# Resources for k2mask (rule: find_masked_regions)
+K2MASK_THREADS: 1
+K2MASK_MEM_MB: 2000
+K2MASK_RUNTIME: "60m"

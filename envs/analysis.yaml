@@ -3,9 +3,7 @@ channels:
     - bioconda
     - defaults
 dependencies:
-    - bbmap=39.01
     - samtools=1.18
-    - python>=3.8
-    - sambamba>=1.0.1
-    - pigz
-    - pyyaml
+    - bedtools=2.31
+    # - python>=3.8
+    # - pandas
