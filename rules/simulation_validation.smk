@@ -93,12 +93,12 @@ rule simulate_reads_neat:
         )
     output:
         # Output simulated reads (fastq.gz files)
-        r1 = SIM_READS_R1_PATTERN.format(
+        r1 = temp(SIM_READS_R1_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
-        r2 = SIM_READS_R2_PATTERN.format(
+        )),
+        r2 = temp(SIM_READS_R2_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
+        )),
         neat_config_yaml = NEAT_CONFIG_YAML_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
@@ -128,12 +128,12 @@ rule clean_fastq_headers:
         )
     output:
         # Output are cleaned FASTQ files
-        r1 = CLEANED_SIM_READS_R1_PATTERN.format(
+        r1 = temp(CLEANED_SIM_READS_R1_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
-        r2 = CLEANED_SIM_READS_R2_PATTERN.format(
+        )),
+        r2 = temp(CLEANED_SIM_READS_R2_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        ))
     log:
         path = LOG_CLEAN_FASTQ_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
@@ -165,9 +165,9 @@ rule classify_simulated:
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     output:
-        kraken_out = KRAKEN_OUT_SIM_PATTERN.format(
+        kraken_out = temp(KRAKEN_OUT_SIM_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
+        )),
         report = KRAKEN_REPORT_SIM_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
@@ -213,9 +213,9 @@ rule extract_correct_read_ids:
         names = config["TAXONOMY_NAMES_PATH"]
     output:
         # List of read IDs (classified_taxid, root_taxid, read_id)
-        read_ids = CORRECT_READ_IDS_PATTERN.format(
+        read_ids = temp(CORRECT_READ_IDS_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        ))
     params:
         selmeout_path = "scripts/selmeout.py",
         tax_id = "{tax_id}",
@@ -261,12 +261,12 @@ rule filter_fastq_with_seqtk:
         )
     output:
         # Final filtered FASTQ files (gzipped, marked temp)
-        r1 = FILTERED_SIM_READS_R1_PATTERN.format(
+        r1 = temp(FILTERED_SIM_READS_R1_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
-        r2 = FILTERED_SIM_READS_R2_PATTERN.format(
+        )),
+        r2 = temp(FILTERED_SIM_READS_R2_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        ))
     log:
         path = LOG_FILTER_FASTQ_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
@@ -302,9 +302,9 @@ rule map_correct_simulated:
         idx_dir = rules.bbmap_index.output.idx_dir # Uses {genome_basename} wildcard
     output:
         # Output BAM and mapping stats
-        bam = MAPPED_SIM_BAM_PATTERN.format(
+        bam = temp(MAPPED_SIM_BAM_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
+        )),
         stats = MAPPED_SIM_STATS_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
