@@ -233,9 +233,9 @@ rule samtools_sort:
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
     output:
-        bam = SORTED_BAM_OUT_PATTERN.format(
+        bam = temp(SORTED_BAM_OUT_PATTERN.format(
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        ))
     params:
         mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G"), # Memory per thread for sorting
     log:
