@@ -65,6 +65,25 @@ elif config.get("RUN_VALIDATION", True):
 else:
     logger.info("RUN_VALIDATION is false, workflow will only run the mapping pipeline.")
 
+def get_all_rewritten_fastqs_r1(wildcards):
+    """
+    Gets list of all header-rewritten R1 FASTQ files. This is for merging all simulated 
+    reads before classification so save compute resources (need only load the Kraken database once).
+    """
+    return get_all_target_outputs(mapping_spec_data, CLEANED_SIM_READS_R1_PATTERN)
+
+def get_all_rewritten_fastqs_r2(wildcards):
+    """Dito for R2."""
+    return get_all_target_outputs(mapping_spec_data, CLEANED_SIM_READS_R2_PATTERN)
+
+def get_all_kraken_outs(wildcards):
+    """
+    Gets list of all expected per-sample kraken output files (after the 
+    classification of aggregated R1 and R2 files).
+    """
+    return get_all_target_outputs(mapping_spec_data, KRAKEN_OUT_SIM_PATTERN)
+
+
 # --- Include Rule Modules ---
 include: "rules/map.smk"
 include: "rules/simulation_validation.smk"

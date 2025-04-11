@@ -5,6 +5,7 @@ import logging
 import json
 import re
 import subprocess
+from snakemake.io import dynamic
 
 # ==================================================
 #      Housekeeping and setup
@@ -22,6 +23,10 @@ SIM_READS_R2_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_bas
 NEAT_CONFIG_YAML_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/neat_config.yml"
 CLEANED_SIM_READS_R1_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_clean_r1.fq.gz"
 CLEANED_SIM_READS_R2_PATTERN = "{outdir}/validation/simulated_reads/{tax_id}/{genome_basename}/sim_clean_r2.fq.gz"
+AGG_SIM_R1_PATTERN = "{outdir}/validation/simulated_reads/aggregated/all_sim_clean_R1.fq.gz"
+AGG_SIM_R2_PATTERN = "{outdir}/validation/simulated_reads/aggregated/all_sim_clean_R2.fq.gz"
+ALL_KRAKEN_OUT_PATTERN = "{outdir}/validation/kraken2_sim/aggregated/all_sim.kraken.out"
+ALL_KRAKEN_REPORT_PATTERN = "{outdir}/validation/kraken2_sim/aggregated/all_sim.kraken.report"
 KRAKEN_OUT_SIM_PATTERN = "{outdir}/validation/kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.out"
 KRAKEN_REPORT_SIM_PATTERN = "{outdir}/validation/kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.report"
 CORRECT_READ_IDS_PATTERN = "{outdir}/validation/filtered_reads/{tax_id}/{genome_basename}/sim_correct_read_ids.txt"
@@ -41,8 +46,10 @@ PLOT_SCATTER_HTML_PATTERN  = "{outdir}/validation/plots/{tax_id}/{genome_basenam
 # --- Define Log Patterns ---
 LOG_ESTIMATE_PARAMS_PATTERN = "{logdir}/estimate_sim_params/{tax_id}/{genome_basename}.log"
 LOG_SIMULATE_READS_PATTERN = "{logdir}/simulate_reads/{tax_id}/{genome_basename}.log"
-LOG_CLEAN_FASTQ_PATTERN = "{logdir}/clean_fastq/{tax_id}/{genome_basename}.log"
-LOG_KRAKEN2_SIM_PATTERN = "{logdir}/kraken2_sim/{tax_id}/{genome_basename}.log"
+LOG_REWRITE_HEADERS_PATTERN = "{logdir}/rewrite_headers/{tax_id}/{genome_basename}.log"
+LOG_AGG_FASTQ_PATTERN = "{logdir}/aggregate_sim_fastqs/aggregate_sim_fastqs.log"
+LOG_KRAKEN2_BATCH_PATTERN = "{logdir}/kraken2_sim/classify_all_simulated.log"
+LOG_SPLIT_KRAKEN_PATTERN = "{logdir}/split_kraken/split_kraken_output.log"
 LOG_EXTRACT_IDS_PATTERN = "{logdir}/extract_ids/{tax_id}/{genome_basename}.log"
 LOG_FILTER_FASTQ_PATTERN = "{logdir}/filter_fastq/{tax_id}/{genome_basename}.log"
 LOG_MAP_SIM_PATTERN = "{logdir}/map_simulated/{tax_id}/{genome_basename}.log"
@@ -118,8 +125,8 @@ rule simulate_reads_neat:
     script:
         "../scripts/run_neat_simulate_reads.py"
 
-# --- Rule: Clean FASTQ Headers (Remove /1, /2) using awk  ---
-rule clean_fastq_headers:
+# --- Rule: Rewrite FASTQ Headers to Embed Source Info (using awk) ---
+rule rewrite_fastq_headers:
     input:
         # Input are the raw simulated reads from NEAT (that have appended "/1" or "/2" to the headers)
         r1 = SIM_READS_R1_PATTERN.format(
@@ -137,59 +144,87 @@ rule clean_fastq_headers:
             outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         ))
     log:
-        path = LOG_CLEAN_FASTQ_PATTERN.format(
+        path = LOG_REWRITE_HEADERS_PATTERN.format(
             logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
         )
+    params:
+        tax_id = "{tax_id}",
+        genome_basename = "{genome_basename}"
     conda:
         ".." / ENVS_DIR_P / "extract_reads.yaml"
-    threads: config.get("CLEAN_FASTQ_THREADS", 1)
+    threads: config.get("REWRITE_HEADERS_THREADS", 1)
     resources:
-        runtime=config.get("CLEAN_FASTQ_RUNTIME", "60m"),
-        mem_mb=config.get("CLEAN_FASTQ_MEM_MB", 1000),
-        cpus_per_task=config.get("CLEAN_FASTQ_THREADS", 1)
+        runtime=config.get("REWRITE_HEADERS_RUNTIME", "60m"),
+        mem_mb=config.get("REWRITE_HEADERS_MEM_MB", 1000),
+        cpus_per_task=config.get("REWRITE_HEADERS_THREADS", 1)
     shell:
-        r""" # <-- Add 'r' here to make it a raw string
+        r"""
         mkdir -p $(dirname {output.r1}) &&
         mkdir -p $(dirname {log.path}) &&
         {{
-            (pigz -dc {input.r1} | awk 'NR % 4 == 1 {{sub(/\/[12]$/, "", $1)}} {{print}}' | pigz -c > {output.r1}) &&
-            (pigz -dc {input.r2} | awk 'NR % 4 == 1 {{sub(/\/[12]$/, "", $1)}} {{print}}' | pigz -c > {output.r2}) ;
+            AWK_CMD='NR % 4 == 1 {{ sub(/\/[12]$/, ""); print $0 "_taxid=" tid "_genome=" gbase; next }} {{ print }}' ;
+            # R1 pipeline
+            (pigz -dc {input.r1} | awk -v tid={params.tax_id} -v gbase={params.genome_basename} "$AWK_CMD" | pigz -c > {output.r1}) &&
+            # R2 pipeline
+            (pigz -dc {input.r2} | awk -v tid={params.tax_id} -v gbase={params.genome_basename} "$AWK_CMD" | pigz -c > {output.r2}) ;
         }} 2> {log.path}
         """
 
-# --- Rule: Classify Simulated Reads using Kraken2 ---
-rule classify_simulated:
+# --- Rule: Aggregate Rewritten Simulated FASTQs ---
+rule aggregate_sim_fastqs:
     input:
-        r1 = CLEANED_SIM_READS_R1_PATTERN.format(
-            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        ),
-        r2 = CLEANED_SIM_READS_R2_PATTERN.format(
-            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        # Use input functions (main Snakefile) to get lists of all R1 and R2 files
+        r1_files = get_all_rewritten_fastqs_r1,
+        r2_files = get_all_rewritten_fastqs_r2
     output:
-        kraken_out = temp(KRAKEN_OUT_SIM_PATTERN.format(
-            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )),
-        report = KRAKEN_REPORT_SIM_PATTERN.format(
-            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        # Output single aggregated files, marked temporary
+        r1 = temp(AGG_SIM_R1_PATTERN.format(outdir=OUTPUT_DIR_P)),
+        r2 = temp(AGG_SIM_R2_PATTERN.format(outdir=OUTPUT_DIR_P))
+    log:
+        path = LOG_AGG_FASTQ_PATTERN.format(logdir=LOG_DIR_P)
+    threads: config.get("AGGREGATE_FASTQ_THREADS", 2)
+    resources:
+        runtime=config.get("AGGREGATE_FASTQ_RUNTIME", "60m"),
+        mem_mb=config.get("AGGREGATE_FASTQ_MEM_MB", 2000),
+        cpus_per_task=config.get("AGGREGATE_FASTQ_THREADS", 2)
+    shell:
+        # Concatenate R1 files, then R2 files.
+        "mkdir -p $(dirname {output.r1}) && "
+        "mkdir -p $(dirname {log.path}) && "
+        "echo 'Concatenating R1 files...' > {log.path} && "
+        "cat {input.r1_files} > {output.r1} 2>> {log.path} && "
+        "echo 'Concatenating R2 files...' >> {log.path} && "
+        "cat {input.r2_files} > {output.r2} 2>> {log.path} && "
+        "echo 'Concatenation complete.' >> {log.path}"
+
+# --- Rule: Classify ALL Concatenated Simulated Reads ---
+rule classify_all_concatenated:
+    input:
+        # Input are the two aggregated FASTQ files
+        r1 = AGG_SIM_R1_PATTERN.format(outdir=OUTPUT_DIR_P),
+        r2 = AGG_SIM_R2_PATTERN.format(outdir=OUTPUT_DIR_P)
+    output:
+        # Output is a single combined kraken output file (temp)
+        kraken_out = temp(ALL_KRAKEN_OUT_PATTERN.format(outdir=OUTPUT_DIR_P)),
+        # Output is a single combined report file
+        report = ALL_KRAKEN_REPORT_PATTERN.format(outdir=OUTPUT_DIR_P)
     params:
         db_path = config["KRAKEN2_DB_PATH"],
         # Determine executable path: use specified path or default 'kraken2' command
         # Path already validated in main Snakefile, if no path is given we assume conda execution
         executable = str(Path(config["KRAKEN2_BIN_DIR"]) / "kraken2") if config.get("KRAKEN2_BIN_DIR") else "kraken2"
     log:
-        path = LOG_KRAKEN2_SIM_PATTERN.format(
-            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
-        )
+        path = LOG_KRAKEN2_BATCH_PATTERN.format(logdir=LOG_DIR_P)
     conda:
+        # Conditionally activate based on executable path
         ".." / ENVS_DIR_P / "classify.yaml" if not config.get("KRAKEN2_BIN_DIR") else None
-    threads: config.get("KRAKEN2_THREADS", 8)
+    threads: config.get("KRAKEN2_THREADS", 32)
     resources:
-        runtime=config.get("KRAKEN2_RUNTIME", "2h"),
-        mem_mb=config.get("KRAKEN2_MEM_MB", 32000),
-        cpus_per_task=config.get("KRAKEN2_THREADS", 8)
+        runtime=config.get("KRAKEN2_RUNTIME", "6h"),
+        mem_mb=config.get("KRAKEN2_MEM_MB", 500000),
+        cpus_per_task=config.get("KRAKEN2_THREADS", 32)
     shell:
+        # Run kraken2 once on the concatenated files
         "mkdir -p $(dirname {output.kraken_out}) && "
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
@@ -201,7 +236,32 @@ rule classify_simulated:
             "--report {output.report} "
             "--gzip-compressed "
             "{input.r1} {input.r2} "
-            "2> {log.path}" # Redirect stderr to log
+            "2> {log.path}"
+
+# --- Rule: Split Combined Kraken Output by Sample ---
+rule split_kraken_output:
+    input:
+        # Input is the single combined kraken output file
+        combined_kraken_out = ALL_KRAKEN_OUT_PATTERN.format(outdir=OUTPUT_DIR_P)
+    output:
+        # Output is the list of all per-sample kraken files
+        dynamic(get_all_kraken_outs)
+    params:
+        # Regex to extract info embedded in read ID by rewrite_fastq_headers rule
+        # Assumes header format like @BaseID_taxid=XXX_genome=YYY
+        # Capture group 1: TaxID digits, Capture group 2: GenomeBaseName chars
+        header_regex = r"_taxid=(\d+)_genome=([a-zA-Z0-9_.\-]+)"
+    log:
+        path = LOG_SPLIT_KRAKEN_PATTERN.format(logdir=LOG_DIR_P)
+    conda:
+        ".." / ENVS_DIR_P / "analysis.yaml"
+    threads: config.get("SPLIT_KRAKEN_THREADS", 1)
+    resources:
+        runtime=config.get("SPLIT_KRAKEN_RUNTIME", "60m"),
+        mem_mb=config.get("SPLIT_KRAKEN_MEM_MB", 2000),
+        cpus_per_task=config.get("SPLIT_KRAKEN_THREADS", 1)
+    script:
+        "../scripts/split_kraken.py"
 
 # --- Rule: Extract Correctly Classified Read IDs using selmeout.py ---
 rule extract_correct_read_ids:

@@ -86,15 +86,25 @@ NEAT_SIM_MEM_MB: 4000
 NEAT_SIM_RUNTIME: "12h"
 NEAT_SIM_THREADS: 1     # NEAT simulation is single-threaded currently, but intends to be parallelized in the future
 
-# Clean FASTQ Headers Resources (pigz + sed)
-CLEAN_FASTQ_THREADS: 1
-CLEAN_FASTQ_MEM_MB: 1000
-CLEAN_FASTQ_RUNTIME: "60m"
+# Rewrite FASTQ Headers Resources (Python script)
+REWRITE_HEADERS_THREADS: 1
+REWRITE_HEADERS_MEM_MB: 1000
+REWRITE_HEADERS_RUNTIME: "60m"
+
+# Concatenate FASTQ Resources (cat)
+AGGREGATE_FASTQ_THREADS: 2
+AGGREGATE_FASTQ_MEM_MB: 2000
+AGGREGATE_FASTQ_RUNTIME: "60m"
 
 # Kraken 2 Resources
-KRAKEN2_THREADS: 8
-KRAKEN2_MEM_MB: 7000
-KRAKEN2_RUNTIME: "20m"
+KRAKEN2_THREADS: 128
+KRAKEN2_MEM_MB: 1600000  # 1.6 TB
+KRAKEN2_RUNTIME: "3h"
+
+# Split Kraken Output Resources (Python script)
+SPLIT_KRAKEN_THREADS: 1
+SPLIT_KRAKEN_MEM_MB: 2000
+SPLIT_KRAKEN_RUNTIME: "60m"
 
 # selmeout.py (Extract IDs) Resources
 EXTRACT_IDS_THREADS: 1
