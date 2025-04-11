@@ -36,6 +36,7 @@ MASKED_FASTA_PATTERN = "{outdir}/validation/masked_regions/{genome_basename}.mas
 CLASSIFIABLE_REGIONS_BED_PATTERN = "{outdir}/validation/classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed"
 OVERLAPPING_READS_BAM_PATTERN = "{outdir}/validation/final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam"
 PER_SAMPLE_SUMMARY_PATTERN = "{outdir}/validation/summary_reports/{tax_id}/{genome_basename}/summary.tsv"
+PLOT_SCATTER_HTML_PATTERN  = "{outdir}/validation/plots/{tax_id}/{genome_basename}/scatter_reads_vs_length.html"
 
 # --- Define Log Patterns ---
 LOG_ESTIMATE_PARAMS_PATTERN = "{logdir}/estimate_sim_params/{tax_id}/{genome_basename}.log"
@@ -51,6 +52,7 @@ LOG_MASKED_REGIONS_PATTERN = "{logdir}/find_masked_regions/{genome_basename}.log
 LOG_DEFINE_CLASSIFIABLE_PATTERN = "{logdir}/define_classifiable_regions/{tax_id}/{genome_basename}.log"
 LOG_INTERSECT_READS_PATTERN = "{logdir}/intersect_reads/{tax_id}/{genome_basename}.log"
 LOG_SUMMARIZE_VALIDATION_PATTERN = "{logdir}/summarize_validation/{tax_id}/{genome_basename}.log"
+LOG_PLOT_SCATTER_PATTERN = "{logdir}/plot_scatter/{tax_id}/{genome_basename}.log"
 
 # --- Rule: Estimate Simulation Parameters using samtools stats ---
 rule estimate_simulation_params:
@@ -551,3 +553,28 @@ rule summarize_validation_coverage:
         cpus_per_task=config.get("SUMMARIZE_VALIDATION_THREADS", 1)
     script:
         "../scripts/summarize_validation.py"
+
+# --- Rule: Create Validation Scatter Plot ---
+rule plot_validation_scatter:
+    input:
+        # Per-sample summary TSV from summarize_validation_coverage
+        summary_tsv = PER_SAMPLE_SUMMARY_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    output:
+        plot_html = PLOT_SCATTER_HTML_PATTERN.format(
+            outdir=OUTPUT_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    log:
+        path = LOG_PLOT_SCATTER_PATTERN.format(
+            logdir=LOG_DIR_P, tax_id="{tax_id}", genome_basename="{genome_basename}"
+        )
+    conda:
+        ".." / ENVS_DIR_P / "analysis.yaml"
+    threads: config.get("PLOT_THREADS", 1)
+    resources:
+        runtime=config.get("PLOT_RUNTIME", "15m"),
+        mem_mb=config.get("PLOT_MEM_MB", 1000),
+        cpus_per_task=config.get("PLOT_THREADS", 1)
+    script:
+        "../scripts/plot_scatter_plotly.py"
