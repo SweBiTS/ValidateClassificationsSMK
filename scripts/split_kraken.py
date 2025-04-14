@@ -15,8 +15,7 @@ except AttributeError as e:
 
 # --- File Paths & Params ---
 combined_kraken_file = snk_input.combined_kraken_out
-# snk_output is a list of all expected output file paths
-expected_output_files = snk_output # Snakemake.OutputFiles object behaves like list
+expected_output_files = snk_output
 log_file = snk_log.path
 header_regex_pattern = snk_params.header_regex
 
@@ -34,7 +33,8 @@ logging.info("----------------------------")
 
 # --- Pre-compile regex and prepare output file mapping ---
 logging.info("Compiling regex and preparing output file map...")
-output_handles = {} # Dictionary to hold open file handles { (taxid, genome): handle }
+output_handles = {}  # Dictionary to hold open file handles { (taxid, genome): handle }
+script_failed = False  # Flag to check if we exited early
 try:
     header_regex = re.compile(header_regex_pattern)
     # Create a mapping from (taxid, genome) tuple to output file path
@@ -75,10 +75,7 @@ try:
 
 except Exception as e:
     logging.error(f"Error during setup: {e}", exc_info=True)
-    # Close any files that were opened
-    for handle in output_handles.values():
-         handle.close()
-    sys.exit(1)
+    script_failed = True  # Mark failure
 
 
 # --- Process Combined Kraken File and Split ---
@@ -107,15 +104,15 @@ try:
                     else:
                         # ERROR: Read ID parsed but doesn't match any expected output
                         logging.error(f"Read ID '{read_id}' contained TaxID/Genome '{key}' but no matching output file was expected based on rule definition. Stopping.")
-                        sys.exit(1)
+                        script_failed = True; break
                 else:
                     # ERROR: Cannot parse required info from read ID format
-                    logging.error(f"Could not parse TaxID/Genome (using regex '{header_regex_pattern}') from read ID '{read_id}'. Stopping.")
-                    sys.exit(1)
+                    logging.error(f"Could not parse TaxID/Genome from read ID '{read_id}'. Stopping.")
+                    script_failed = True; break
             else:
                 # ERROR: Kraken output line format incorrect
                 logging.error(f"Malformed Kraken output line (expected >=5 tab-separated fields, got {len(parts)}): {line.strip()}")
-                sys.exit(1)
+                script_failed = True; break
 
             # Progress indicator
             if processed_lines % 5000000 == 0:
@@ -123,15 +120,22 @@ try:
 
 except FileNotFoundError:
     logging.error(f"Combined Kraken input file not found: {combined_kraken_file}")
-    sys.exit(1)
+    script_failed = True
 except Exception as e:
     logging.error(f"Error processing Kraken file {combined_kraken_file} around line {processed_lines}: {e}", exc_info=True)
-    sys.exit(1)
+    script_failed = True
 finally:
     # Ensure all output files are closed
     logging.info("Closing output file handles.")
     for handle in output_handles.values():
-         handle.close()
+            try:
+                handle.close()
+            except Exception:
+                pass
 
-logging.info(f"Finished splitting successfully. Processed Lines: {processed_lines}")
-logging.info("Kraken output splitting script finished.")
+# --- Final Step: check script_failed status ---
+if script_failed:
+     logging.error("Kraken output splitting script failed.")
+     sys.exit(1)
+else:
+     logging.info("Kraken output splitting script finished successfully.")

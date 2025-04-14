@@ -16,6 +16,6 @@ default-resources:
   cpus_per_task: 8
 
 # -- Rule-Specific Resources (Overrides defaults, references config.yaml) --
-set-resources:
-  classify_simulated:
-    slurm_partition: "memory"
+# set-resources:
+#   classify_all_concatenated:
+#     slurm_partition: "memory"

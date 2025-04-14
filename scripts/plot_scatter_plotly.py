@@ -1,5 +1,3 @@
-# scripts/plot_scatter_plotly.py
-
 import sys
 import logging
 import pandas as pd

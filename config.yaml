@@ -33,6 +33,8 @@ BBMAP_MINID: 0.97               # Minimum identity for mapping
 BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
+# NEAT specific settings
+SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (INTEGER)
 
 # --- Kraken2 Settings ---
 KRAKEN2_DB_PATH: "kraken_db/test_db"
@@ -81,7 +83,6 @@ SAMTOOLS_STATS_RUNTIME: "20m"
 SAMTOOLS_STATS_THREADS: 1
 
 # NEAT Simulation Resources
-SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (INTEGER)
 NEAT_SIM_MEM_MB: 4000
 NEAT_SIM_RUNTIME: "12h"
 NEAT_SIM_THREADS: 1     # NEAT simulation is single-threaded currently, but intends to be parallelized in the future
@@ -97,9 +98,9 @@ AGGREGATE_FASTQ_MEM_MB: 2000
 AGGREGATE_FASTQ_RUNTIME: "60m"
 
 # Kraken 2 Resources
-KRAKEN2_THREADS: 128
-KRAKEN2_MEM_MB: 1600000  # 1.6 TB
-KRAKEN2_RUNTIME: "3h"
+KRAKEN2_THREADS: 16
+KRAKEN2_MEM_MB: 8000
+KRAKEN2_RUNTIME: "30m"
 
 # Split Kraken Output Resources (Python script)
 SPLIT_KRAKEN_THREADS: 1
