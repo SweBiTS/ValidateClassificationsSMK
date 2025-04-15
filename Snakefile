@@ -6,15 +6,27 @@ import sys
 # TODO: For de-cluttering of the Snakefile, move all patterns and helper functions into their own files, and import them here.
 # TODO: Implement dynamic resource allocation that depend on the size of the input files.
 # TODO: Implement resubmission of jobs that fail, that increases the memory and/or time resources based on the "attempts" variable
+# TODO: Things for final report:
+    # - For each tax_id and genome_basename:
+        # - Number of reads to start with
+        # - Mapping information (check the stats file from BBMap):
+            # - Percentage reads mapped
+            # - Percentage unambiguous
+            # - Percentage ambiguous
+            # - Percentage unmapped
+        # - Percentage duplicates (removed)
+        # - Number of generated reads and coverage
+        # - Percentage correctly classified (to tax_id in mapping spec)
 
-# ==================================================
-#      Housekeeping and Setup
-# ==================================================
 
-# --- Configuration file ---
+# ============================== #
+# --- Housekeeping and Setup --- #
+# ============================== #
+
+# --- Configuration file --- #
 configfile: "config.yaml"
 
-# --- Setup Logging ---
+# --- Setup Logging --- #
 # Get log level string from config, default to INFO, convert to upper case
 log_level_str = config.get("LOG_LEVEL", "INFO").upper()
 
@@ -36,76 +48,18 @@ logging.basicConfig(
 # Log the effective level being used
 logging.info(f"Logging level set to: {logging.getLevelName(logging.getLogger().getEffectiveLevel())}")
 
-# --- Define Core Paths ---
-# These Path objects are globally accessible in included files
-INPUT_DIR_P = Path(config["INPUT_DIR"])
-OUTPUT_DIR_P = Path(config["OUTPUT_DIR"])
-LOG_DIR_P = Path(config["LOG_DIR"])
-INDEX_DIR_BBMAP_P = OUTPUT_DIR_P / config["INDEX_DIR_BBMAP"]  # Special case
-GENOMES_DIR_P = Path(config["GENOMES_DIR"])
-ENVS_DIR_P = Path(config["ENVS_DIR"])
+# --- Define Core Paths --- #
+LOG_DIR = Path("logs")
+OUTPUT_DIR = Path("output")
+INPUT_DIR = Path("input")
+BBMAP_INDEX_DIR = OUTPUT_DIR / "bbmap_indices"
+GENOMES_DIR = Path("supporting_files/genomes")
+ENVS_DIR = Path("envs")
 
-# --- PATTERN DEFINITIONS ---
-# --- map.smk output patterns ---
-RAW_BAM_OUT_PATTERN = str(OUTPUT_DIR_P / "mapping/{tax_id}/{genome_basename}/mapping.bam")
-SORTED_BAM_OUT_PATTERN = str(OUTPUT_DIR_P / "mapping/{tax_id}/{genome_basename}/mapping.sorted.bam")
-DEDUP_BAM_OUT_PATTERN = str(OUTPUT_DIR_P / "mapping/{tax_id}/{genome_basename}/mapping_dedup.bam")
-DEDUP_BAM_INDEX_OUT_PATTERN = str(OUTPUT_DIR_P / "mapping/{tax_id}/{genome_basename}/mapping_dedup.bam.bai")
-STATS_OUT_PATTERN = str(OUTPUT_DIR_P / "mapping/{tax_id}/{genome_basename}/mapping_stats.txt")
+# --- Pattern definitions --- #
 
-# --- map.smk log patterns ---
-LOG_BBMAP_INDEX_PATTERN = str(LOG_DIR_P / "bbmap_index/{genome_basename}.log")
-LOG_MAP_PATTERN = str(LOG_DIR_P / "bbmap_map/{tax_id}_{genome_basename}.log")
-LOG_SORT_PATTERN = str(LOG_DIR_P / "samtools_sort/{tax_id}_{genome_basename}.log")
-LOG_MARKDUP_PATTERN = str(LOG_DIR_P / "sambamba_markdup/{tax_id}_{genome_basename}.log")
 
-# --- simulation_validation.smk output patterns ---
-SAMTOOLS_STATS_OUT_PATTERN = str(OUTPUT_DIR_P / "validation/stats/{tax_id}/{genome_basename}/samtools_stats.txt")
-SIM_PARAMS_OUT_PATTERN = str(OUTPUT_DIR_P / "validation/params/{tax_id}/{genome_basename}/sim_params.json")
-SIM_READS_R1_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/{tax_id}/{genome_basename}/sim_r1.fastq.gz")
-SIM_READS_R2_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/{tax_id}/{genome_basename}/sim_r2.fastq.gz")
-NEAT_CONFIG_YAML_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/{tax_id}/{genome_basename}/neat_config.yml")
-CLEANED_SIM_READS_R1_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/{tax_id}/{genome_basename}/sim_clean_R1.fq.gz")
-CLEANED_SIM_READS_R2_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/{tax_id}/{genome_basename}/sim_clean_R2.fq.gz")
-AGG_SIM_R1_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/aggregated/all_sim_clean_R1.fq.gz")
-AGG_SIM_R2_PATTERN = str(OUTPUT_DIR_P / "validation/simulated_reads/aggregated/all_sim_clean_R2.fq.gz")
-ALL_KRAKEN_OUT_PATTERN = str(OUTPUT_DIR_P / "validation/kraken2_sim/aggregated/all_sim.kraken.out")
-ALL_KRAKEN_REPORT_PATTERN = str(OUTPUT_DIR_P / "validation/kraken2_sim/aggregated/all_sim.kraken.report")
-KRAKEN_OUT_SIM_PATTERN = str(OUTPUT_DIR_P / "validation/kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.out")
-KRAKEN_REPORT_SIM_PATTERN = str(OUTPUT_DIR_P / "validation/kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.report")
-CORRECT_READ_IDS_PATTERN = str(OUTPUT_DIR_P / "validation/filtered_reads/{tax_id}/{genome_basename}/sim_correct_read_ids.txt")
-FILTERED_SIM_READS_R1_PATTERN = str(OUTPUT_DIR_P / "validation/filtered_reads/{tax_id}/{genome_basename}/sim_correct_R1.fq.gz")
-FILTERED_SIM_READS_R2_PATTERN = str(OUTPUT_DIR_P / "validation/filtered_reads/{tax_id}/{genome_basename}/sim_correct_R2.fq.gz")
-MAPPED_SIM_BAM_PATTERN = str(OUTPUT_DIR_P / "validation/mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.bam")
-MAPPED_SIM_STATS_PATTERN = str(OUTPUT_DIR_P / "validation/mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim_stats.txt")
-SORTED_MAPPED_SIM_BAM_PATTERN = str(OUTPUT_DIR_P / "validation/mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.sorted.bam")
-MASKED_REGIONS_BED_PATTERN = str(OUTPUT_DIR_P / "validation/masked_regions/{genome_basename}.masked.bed")
-COVERED_REGIONS_BED_PATTERN = str(OUTPUT_DIR_P / "validation/coverage_sim/{tax_id}/{genome_basename}/covered_regions.bed")
-MASKED_FASTA_PATTERN = str(OUTPUT_DIR_P / "validation/masked_regions/{genome_basename}.masked_lowercase.fasta")
-CLASSIFIABLE_REGIONS_BED_PATTERN = str(OUTPUT_DIR_P / "validation/classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed")
-OVERLAPPING_READS_BAM_PATTERN = str(OUTPUT_DIR_P / "validation/final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam")
-PER_SAMPLE_SUMMARY_PATTERN = str(OUTPUT_DIR_P / "validation/summary_reports/{tax_id}/{genome_basename}/summary.tsv")
-PLOT_SCATTER_HTML_PATTERN  = str(OUTPUT_DIR_P / "validation/plots/{tax_id}/{genome_basename}/scatter_reads_vs_length.html")
-
-# --- simulation_validation.smk log patterns ---
-LOG_ESTIMATE_PARAMS_PATTERN = str(LOG_DIR_P / "estimate_sim_params/{tax_id}/{genome_basename}.log")
-LOG_SIMULATE_READS_PATTERN = str(LOG_DIR_P / "simulate_reads/{tax_id}/{genome_basename}.log")
-LOG_REWRITE_HEADERS_PATTERN = str(LOG_DIR_P / "rewrite_headers/{tax_id}/{genome_basename}.log")
-LOG_AGG_FASTQ_PATTERN = str(LOG_DIR_P / "aggregate_sim_fastqs/aggregate_sim_fastqs.log")
-LOG_KRAKEN2_BATCH_PATTERN = str(LOG_DIR_P / "kraken2_sim/classify_all_simulated.log")
-LOG_SPLIT_KRAKEN_PATTERN = str(LOG_DIR_P / "split_kraken/split_kraken_output.log")
-LOG_EXTRACT_IDS_PATTERN = str(LOG_DIR_P / "extract_ids/{tax_id}/{genome_basename}.log")
-LOG_FILTER_FASTQ_PATTERN = str(LOG_DIR_P / "filter_fastq/{tax_id}/{genome_basename}.log")
-LOG_MAP_SIM_PATTERN = str(LOG_DIR_P / "map_simulated/{tax_id}/{genome_basename}.log")
-LOG_SORT_SIM_PATTERN = str(LOG_DIR_P / "sort_simulated/{tax_id}/{genome_basename}.log")
-LOG_CALC_SIM_COV_PATTERN = str(LOG_DIR_P / "calculate_sim_coverage/{tax_id}/{genome_basename}.log")
-LOG_MASKED_REGIONS_PATTERN = str(LOG_DIR_P / "find_masked_regions/{genome_basename}.log")
-LOG_DEFINE_CLASSIFIABLE_PATTERN = str(LOG_DIR_P / "define_classifiable_regions/{tax_id}/{genome_basename}.log")
-LOG_INTERSECT_READS_PATTERN = str(LOG_DIR_P / "intersect_reads/{tax_id}/{genome_basename}.log")
-LOG_SUMMARIZE_VALIDATION_PATTERN = str(LOG_DIR_P / "summarize_validation/{tax_id}/{genome_basename}.log")
-LOG_PLOT_SCATTER_PATTERN = str(LOG_DIR_P / "plot_scatter/{tax_id}/{genome_basename}.log")
-
-# --- Validate Kraken2 Path (CONDITIONAL on workflow mode in the main config) ---
+# --- Validate Kraken2 Path (CONDITIONAL on workflow mode in the main config) --- #
 # Only validate if validation is requested AND a specific binary dir is given
 if config.get("RUN_VALIDATION", True) and config.get("KRAKEN2_BIN_DIR"):
     kraken2_bin_dir = Path(config["KRAKEN2_BIN_DIR"]).resolve()
@@ -125,7 +79,7 @@ elif config.get("RUN_VALIDATION", True):
 else:
     logger.info("RUN_VALIDATION is false, workflow will only run the mapping pipeline.")
 
-# --- Environment Detection ---
+# --- Environment Detection --- #
 # Detect WSL vs native Linux. BBMap JNI acceleration (`usejni=t`) failed on WSL
 # during development due to linking issues. Set flag to `usejni=f` (WSL) or 
 # `usejni=t` (Linux) for compatibility/performance.
@@ -138,7 +92,7 @@ else:
     logger.info("Non-WSL environment detected. Enabling BBMap JNI acceleration (usejni=t).")
     BBMAP_JNI_FLAG = "usejni=t"
 
-# --- Load Mapping Specification ---
+# --- Load Mapping Specification --- #
 config_mapping_spec_path = Path(config["MAPPING_SPECIFICATION"])
 try:
     logger.info(f"Loading mapping specification from: {config_mapping_spec_path}")
@@ -160,34 +114,19 @@ except Exception as e:
     logger.error(f"An unexpected error occurred reading '{config_mapping_spec_path}': {e}. Exiting.")
     sys.exit(1)
 
-# --- Helper Function: Get Genome Basename ---
+
+# ==================== #
+# --- HELPER FUNCS --- #
+# ==================== #
+
+# --- Get Genome Basename --- #
 def get_genome_basename(fasta_filename):
     if fasta_filename and isinstance(fasta_filename, str):
         return Path(fasta_filename).stem
     logger.warning(f"Invalid or non-string genome filename '{fasta_filename}' encountered in spec file.")
     return None
 
-# --- Helper Function: Find Actual Genome File Path ---
-def get_actual_fasta_path(wildcards):
-    """Finds the full path to the genome file, checking common extensions."""
-    basename = wildcards.genome_basename
-    genomes_dir = GENOMES_DIR_P
-    
-    # Define the extensions to check in order of preference
-    extensions_to_check = [".fasta", ".fa", ".fna"]
-
-    for ext in extensions_to_check:
-        potential_path = genomes_dir / f"{basename}{ext}"
-        if potential_path.exists():
-            logger.debug(f"Found genome file for basename '{basename}' at: {potential_path}")
-            return str(potential_path) # Return the path string immediately if found
-
-    # If the loop finishes without returning, no file was found
-    raise FileNotFoundError(
-        f"Genome file for basename '{basename}' not found with any of the extensions "
-        f"{extensions_to_check} in directory '{genomes_dir}'")
-
-# --- Generate Target Output Files Function ---
+# --- Generate Target Output Files Function --- #
 def get_all_target_outputs(mapping_spec, pattern_template):
     """
     Generates a list of output files based on the mapping specification and the
@@ -219,55 +158,39 @@ def get_all_target_outputs(mapping_spec, pattern_template):
         logger.warning(f"Encountered {warning_count} issues while processing mapping specification.")
     return target_files
 
-# --- Define Functions for Rule All ---
-def get_all_target_indices():
-    """The final output files from the mapping branch of the workflow (map.smk)."""
+# --- Define Functions for Rule All --- #
+# Final output files from the mapping branch of the workflow (map.smk)
+def get_all_target_mapping_outputs():
     return get_all_target_outputs(mapping_spec_data, DEDUP_BAM_INDEX_OUT_PATTERN)
 
-def get_all_rewritten_fastqs_r1(wildcards):
-    """
-    Gets list of all header-rewritten R1 FASTQ files. This is for merging all simulated 
-    reads before classification so save compute resources (need only load the Kraken database once).
-    """
-    return get_all_target_outputs(mapping_spec_data, CLEANED_SIM_READS_R1_PATTERN)
+# Final output files from the validation branch of the workflow (simulation_validation.smk)
+def get_all_target_validation_outputs():
+    return get_all_target_outputs(mapping_spec_data, PLOT_SCATTER_HTML_PATTERN)
 
-def get_all_rewritten_fastqs_r2(wildcards):
-    """Dito for R2."""
-    return get_all_target_outputs(mapping_spec_data, CLEANED_SIM_READS_R2_PATTERN)
+# ================================== #
+# --- WORKFLOWS AND TARGET FILES --- #
+# ================================== #
 
-def get_all_kraken_outs(wildcards):
-    """Gets list of all expected per-sample kraken output files."""
-    return get_all_target_outputs(mapping_spec_data, KRAKEN_OUT_SIM_PATTERN)
-
-# --- Generate the list of expected Kraken output files (after splitting them) ---
-# This is needed because I couldn't use a function in the output section of the rule
-# But since we know what the output files will be called, we can generate a list of them
-# here and use it in the rule.
-ALL_EXPECTED_KRAKEN_OUTS = get_all_kraken_outs(None)
-if not ALL_EXPECTED_KRAKEN_OUTS:
-    logger.warning("No expected Kraken output files generated based on mapping spec. Check patterns/spec file.")
-
-# --- Include Rule Modules ---
+# --- Include Rule Modules --- #
 include: "rules/map.smk"
 include: "rules/simulation_validation.smk"
 
-# --- Define Conditional Targets for Rule All ---
+# --- Define Conditional Targets for Rule All --- #
 def get_final_targets():
     # Always include the main mapping output indices (map.smk)
-    targets = get_all_target_indices()
+    targets = get_all_target_mapping_outputs()
 
     # Conditionally add the single final validation report file
     if config.get("RUN_VALIDATION", True):
         logger.info("Adding final validation summary reports to rule all targets.")
-        final_validation_outputs = get_all_target_outputs(
-            mapping_spec_data, PLOT_SCATTER_HTML_PATTERN)
+        final_validation_outputs = get_all_target_validation_outputs()
         targets.extend(final_validation_outputs)
     else:
         logger.info("Skipping validation pipeline targets for rule all.")
 
     return targets
 
-# --- Rule All: Defines the final targets of the workflow ---
+# --- Define the final targets of the workflow --- #
 localrules: all
 
 rule all:

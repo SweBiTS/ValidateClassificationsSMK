@@ -11,16 +11,6 @@ RUN_VALIDATION: true
 # --- General Settings ---
 LOG_LEVEL: "INFO"   # Logging verbosity: {DEBUG, INFO, WARNING, ERROR, CRITICAL}
 
-# --- Directory Paths (relative to Snakefile location) ---
-# Should be static unless project structure changes
-INPUT_DIR: "input"
-OUTPUT_DIR: "output"
-LOG_DIR: "logs"
-GENOMES_DIR: "supporting_files/genomes"               # Directory containing the genomes to map against
-INDEX_DIR_BBMAP: "bbmap_indices"                      # Subdirectory within 'outdir' for BBMap indexes
-ENVS_DIR: "envs"
-
-
 # --- Input File Patterns & Specifications ---
 # Change these as needed
 FASTQ_FILE_PATTERN: "fastq/taxID-{tax_id}_R{direction}.fq.gz"           # Pattern for input FASTQ files
@@ -33,8 +23,11 @@ BBMAP_MINID: 0.97               # Minimum identity for mapping
 BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
+# Minimum coverage to continue with validation, after initial mapping and de-duplication
+MIN_REAL_COVERAGE_FOR_VALIDATION: 0.1 # e.g., Skip validation if mean depth < 0.1X
+
 # NEAT specific settings
-SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (INTEGER)
+SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (>= 1; INTEGER)
 
 # --- Kraken2 Settings ---
 KRAKEN2_DB_PATH: "kraken_db/test_db"
@@ -55,15 +48,15 @@ TAXONOMY_NAMES_PATH: "kraken_db/test_db/taxonomy/names.dmp"
 # These are used directly by the rules (and passed to SLURM)
 
 # BBMap Index Resources
-BBMAP_INDEX_MEM: "20g"  # Referenced by bbmap_index rule in map.smk
-BBMAP_INDEX_MEM_MB: 22000
+BBMAP_INDEX_MEM: "8g"  # Referenced by bbmap_index rule in map.smk
+BBMAP_INDEX_MEM_MB: 8000
 BBMAP_INDEX_THREADS: 4
 BBMAP_INDEX_RUNTIME: "1h"
 
 # BBMap Map Reads Resources
-BBMAP_MAP_MEM: "20g"
-BBMAP_MAP_MEM_MB: 22000
-BBMAP_MAP_THREADS: 16
+BBMAP_MAP_MEM: "8g"
+BBMAP_MAP_MEM_MB: 8000
+BBMAP_MAP_THREADS: 8
 BBMAP_MAP_RUNTIME: "24h"
 
 # Samtools Sort Resources
@@ -74,8 +67,13 @@ SAMTOOLS_SORT_RUNTIME: "2h"
 
 # Sambamba Markdup Resources
 SAMBAMBA_MARKDUP_THREADS: 8
-SAMBAMBA_MARKDUP_MEM_MB: 16000
+SAMBAMBA_MARKDUP_MEM_MB: 8000
 SAMBAMBA_MARKDUP_RUNTIME: "2h"
+
+# Check Real Read Coverage Resources (samtools coverage)
+CHECK_COVERAGE_THREADS: 1
+CHECK_COVERAGE_MEM_MB: 2000
+CHECK_COVERAGE_RUNTIME: "10m"
 
 # Samtools Stats Resources
 SAMTOOLS_STATS_MEM_MB: 2000

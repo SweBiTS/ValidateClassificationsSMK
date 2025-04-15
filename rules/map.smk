@@ -1,11 +1,61 @@
 from pathlib import Path
 
-# --- Rule: Index Reference Genome using BBMap ---
+
+# ========================== #
+# --- FILE PATH PATTERNS --- #
+# ========================== #
+
+# --- output patterns --- #
+MAPPING_OUT_DIR = OUTPUT_DIR / "mapping"
+RAW_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping.bam")
+SORTED_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping.sorted.bam")
+DEDUP_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam")
+DEDUP_BAM_INDEX_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam.bai")
+STATS_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_stats.txt")
+
+# --- log patterns --- #
+MAPPING_LOG_DIR = LOG_DIR / "mapping"
+LOG_BBMAP_INDEX_PATTERN = str(MAPPING_LOG_DIR / "{genome_basename}__bbmap_index.log")
+LOG_MAP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__bbmap_map.log")
+LOG_SORT_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__samtools_sort.log")
+LOG_MARKDUP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__sambamba_markdup.log")
+
+
+# ==================== #
+# --- HELPER FUNCS --- #
+# ==================== #
+
+# --- Find Actual Genome File Path ---
+def get_actual_fasta_path(wildcards):
+    """Finds the full path to the genome file, checking common extensions."""
+    basename = wildcards.genome_basename
+    genomes_dir = GENOMES_DIR
+    
+    # Define the extensions to check in order of preference
+    extensions_to_check = [".fasta", ".fa", ".fna"]
+
+    for ext in extensions_to_check:
+        potential_path = genomes_dir / f"{basename}{ext}"
+        if potential_path.exists():
+            logger.debug(f"Found genome file for basename '{basename}' at: {potential_path}")
+            return str(potential_path) # Return the path string immediately if found
+
+    # If the loop finishes without returning, no file was found
+    raise FileNotFoundError(
+        f"Genome file for basename '{basename}' not found with any of the extensions "
+        f"{extensions_to_check} in directory '{genomes_dir}'")
+
+
+# ============= #
+# --- RULES --- #
+# ============= #
+
+# --- Index Reference Genome using BBMap --- #
 rule bbmap_index:
     input:
         fasta = get_actual_fasta_path
     output:
-        idx_dir = directory(str(INDEX_DIR_BBMAP_P / "{genome_basename}"))
+        idx_dir = directory(BBMAP_INDEX_DIR / "{genome_basename}")
     params:
         build_id = 1,
         mem = config.get("BBMAP_INDEX_MEM", "20g")
@@ -13,7 +63,7 @@ rule bbmap_index:
         path = LOG_BBMAP_INDEX_PATTERN.format(
             genome_basename="{genome_basename}")
     conda:
-        ".." / ENVS_DIR_P / "map.yaml"
+        ".." / ENVS_DIR / "map.yaml"
     threads: config.get("BBMAP_INDEX_THREADS", 4)
     resources:
         mem_mb=config.get("BBMAP_INDEX_MEM_MB", 22000),
@@ -33,20 +83,19 @@ rule bbmap_index:
             f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
             "> {log.path} 2>&1"
 
-
-# --- Rule: Map Reads to Reference using BBMap ---
+# --- Map Reads to Reference using BBMap --- #
 rule bbmap_map_reads:
     input:
         idx_dir = rules.bbmap_index.output.idx_dir,
         r1 = lambda wildcards: str(
-            INPUT_DIR_P / config["FASTQ_FILE_PATTERN"].format(
+            INPUT_DIR / config["FASTQ_FILE_PATTERN"].format(
                 tax_id=wildcards.tax_id, direction="1")),
         r2 = lambda wildcards: str(
-            INPUT_DIR_P / config["FASTQ_FILE_PATTERN"].format(
+            INPUT_DIR / config["FASTQ_FILE_PATTERN"].format(
                 tax_id=wildcards.tax_id, direction="2"))
     output:
-        bam = temp(RAW_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")),
+        bam = RAW_BAM_OUT_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}"),
         stats = STATS_OUT_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     params:
@@ -59,7 +108,7 @@ rule bbmap_map_reads:
         path = LOG_MAP_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     conda:
-        ".." / ENVS_DIR_P / "map.yaml"
+        ".." / ENVS_DIR / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 4)
     resources:
         mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
@@ -86,15 +135,14 @@ rule bbmap_map_reads:
             f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
         "> {log.path} 2>&1"
 
-
-# --- Rule: Sort BAM file using Samtools ---
+# --- Sort BAM file using Samtools --- #
 rule samtools_sort:
     input:
         bam = RAW_BAM_OUT_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     output:
-        bam = temp(SORTED_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}"))
+        bam = SORTED_BAM_OUT_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
     params:
         # Memory per thread for sorting
         mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G")
@@ -102,7 +150,7 @@ rule samtools_sort:
         path = LOG_SORT_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     conda:
-        ".." / ENVS_DIR_P / "map.yaml"
+        ".." / ENVS_DIR / "map.yaml"
     threads: config.get("SAMTOOLS_SORT_THREADS", 2)
     resources:
         mem_mb=lambda wildcards, threads: int(threads) * int(config.get("SAMTOOLS_SORT_MEM_PER_THREAD_MB", 2048)),
@@ -118,8 +166,7 @@ rule samtools_sort:
         "{input.bam} "                  # Input file
         "2> {log.path}"                 # Log stderr
 
-
-# --- Rule: Mark/Remove Duplicates using Sambamba ---
+# --- Mark/Remove Duplicates using Sambamba --- #
 rule mark_duplicates_sambamba:
     input:
         # Input is the coordinate-sorted BAM from samtools_sort
@@ -138,7 +185,7 @@ rule mark_duplicates_sambamba:
         path = LOG_MARKDUP_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     conda:
-         ".." / ENVS_DIR_P / "map.yaml"
+         ".." / ENVS_DIR / "map.yaml"
     threads: config.get("SAMBAMBA_MARKDUP_THREADS", 4)
     resources:
         mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 8000),
