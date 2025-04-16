@@ -30,6 +30,7 @@ MASKED_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "masked_regions/{genome_basename}.
 MASKED_FASTA_PATTERN = str(OUTPUT_DIR / "masked_regions/{genome_basename}.masked_lowercase.fasta")
 COVERED_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "coverage_sim/{tax_id}/{genome_basename}/covered_regions.bed")
 CLASSIFIABLE_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed")
+SORTED_CLASSIFIABLE_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.sorted.bed")
 OVERLAPPING_READS_BAM_PATTERN = str(OUTPUT_DIR / "final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam")
 PER_SAMPLE_SUMMARY_PATTERN = str(OUTPUT_DIR / "summary_reports/{tax_id}/{genome_basename}/summary.tsv")
 PLOT_SCATTER_HTML_PATTERN  = str(OUTPUT_DIR / "plots/{tax_id}/{genome_basename}/scatter_reads_vs_length.html")
@@ -49,6 +50,7 @@ LOG_SORT_SIM_PATTERN = str(VALIDATION_LOG_DIR / "sort_simulated/{tax_id}/{genome
 LOG_CALC_SIM_COV_PATTERN = str(VALIDATION_LOG_DIR / "calculate_sim_coverage/{tax_id}/{genome_basename}.log")
 LOG_MASKED_REGIONS_PATTERN = str(VALIDATION_LOG_DIR / "find_masked_regions/{genome_basename}.log")
 LOG_DEFINE_CLASSIFIABLE_PATTERN = str(VALIDATION_LOG_DIR / "define_classifiable_regions/{tax_id}/{genome_basename}.log")
+LOG_SORT_CLASSIFIABLE_PATTERN = str(VALIDATION_LOG_DIR / "sort_classifiable_regions/{tax_id}/{genome_basename}.log")
 LOG_INTERSECT_READS_PATTERN = str(VALIDATION_LOG_DIR / "intersect_reads/{tax_id}/{genome_basename}.log")
 LOG_SUMMARIZE_VALIDATION_PATTERN = str(VALIDATION_LOG_DIR / "summarize_validation/{tax_id}/{genome_basename}.log")
 LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "plot_scatter/{tax_id}/{genome_basename}.log")
@@ -535,6 +537,32 @@ rule define_classifiable_regions:
         "> {output.classifiable_bed} "
         "2> {log.path}"
 
+# --- Sort the Classifiable Regions BED file --- #
+rule sort_classifiable_regions:
+    input:
+        # Input is the potentially unsorted BED from subtract step
+        unsorted_bed = CLASSIFIABLE_REGIONS_BED_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    output:
+        # Output is the sorted BED file
+        sorted_bed = SORTED_CLASSIFIABLE_REGIONS_BED_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    log:
+        path = LOG_SORT_CLASSIFIABLE_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    threads: config.get("SORT_BED_THREADS", 1)
+    resources:
+        runtime=config.get("SORT_BED_RUNTIME", "15m"),
+        mem_mb=config.get("SORT_BED_MEM_MB", 1000),
+        cpus_per_task=config.get("SORT_BED_THREADS", 1)
+    shell:
+        # Lexicographical sort by chrom, then numerically by start position
+        # Use standard Unix sort: -k1,1 (sort by chrom), -k2,2n (sort by start numerically)
+        "mkdir -p $(dirname {output.sorted_bed}) && "
+        "mkdir -p $(dirname {log.path}) && "
+        "sort -k1,1 -k2,2n {input.unsorted_bed} > {output.sorted_bed} "
+        "2> {log.path}"
+
 # --- Intersect Real Reads with Classifiable Regions ---
 rule intersect_real_reads_with_classifiable_regions:
     input:
@@ -542,7 +570,7 @@ rule intersect_real_reads_with_classifiable_regions:
         bam = DEDUP_BAM_OUT_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}"),
         # Use the final classifiable regions BED
-        regions = CLASSIFIABLE_REGIONS_BED_PATTERN.format(
+        regions = SORTED_CLASSIFIABLE_REGIONS_BED_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     output:
         # Output BAM containing unique reads overlapping classifiable regions

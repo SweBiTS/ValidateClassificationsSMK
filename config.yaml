@@ -130,6 +130,11 @@ BEDTOOLS_SUBTRACT_THREADS: 1
 BEDTOOLS_SUBTRACT_MEM_MB: 2000
 BEDTOOLS_SUBTRACT_RUNTIME: "15m"
 
+# Sort Classifiable BED file Resources
+SORT_BED_THREADS: 1
+SORT_BED_MEM_MB: 1000
+SORT_BED_RUNTIME: "15m"
+
 # Bedtools Intersect (find real reads overlapping classifiable 
 # regions, rule: intersect_real_reads_with_classifiable_regions) Resources
 INTERSECT_READS_THREADS: 1
