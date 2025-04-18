@@ -31,7 +31,7 @@ BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, 
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
 # --- pIRS specific settings --- #
-SIMULATION_COVERAGE: 10  # Coverage for pIRS simulation
+COVERAGE: 10  # Coverage for pIRS simulation
 
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 

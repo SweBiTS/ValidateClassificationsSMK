@@ -27,7 +27,7 @@ output_prefix = output_dir / "pirs"
 log_file = snk_log.path
 
 # --- Get Config Parameters ---
-coverage = snk_config.get("SIMULATION_COVERAGE", 10)
+coverage = snk_config.get("COVERAGE", 10)
 
 # --- Setup Logging ---
 Path(log_file).parent.mkdir(parents=True, exist_ok=True)
