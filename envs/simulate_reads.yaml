@@ -3,4 +3,4 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - neat
+  - pirs>=2.0.2

@@ -1,47 +1,44 @@
-##############################################
-# Run configuration - Validate Classifications
-##############################################
+# ==================================================== #
+# --- Run configuration - Validate Classifications --- #
+# ==================================================== #
 
-# --- Workflow Mode ---
-# Set to true or false.
-# false: only map reads (map.smk).
-# true: run the validation steps (simulation_validation.smk; simulation of reads, classification, and estimation of classifiable regions)
-RUN_VALIDATION: true
+############################
+# --- General Settings --- #
+############################
 
-# --- General Settings ---
+# --- Log level --- #
 LOG_LEVEL: "INFO"   # Logging verbosity: {DEBUG, INFO, WARNING, ERROR, CRITICAL}
 
-# --- Input File Patterns & Specifications ---
+# --- Workflow Mode --- #
+# false: only map reads (map.smk).
+# true: run the validation steps (simulation_validation.smk)
+RUN_VALIDATION: true  # {true, false}
+
+# --- Input File Patterns & Specifications --- #
 # Change these as needed
 FASTQ_FILE_PATTERN: "fastq/taxID-{tax_id}_R{direction}.fq.gz"           # Pattern for input FASTQ files
 MAPPING_SPECIFICATION: "supporting_files/mapping_specification.yaml"    # File mapping tax IDs to genome files
 
-
-# --- Tool Parameters ---
+# --- Tool Parameters --- #
 # BBMap specific settings
 BBMAP_MINID: 0.97               # Minimum identity for mapping
 BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
-# Minimum coverage to continue with validation, after initial mapping and de-duplication
-MIN_REAL_COVERAGE_FOR_VALIDATION: 0.1 # e.g., Skip validation if mean depth < 0.1X
+# pIRS specific settings
+SIMULATION_COVERAGE: 10  # Coverage for pIRS simulation
 
-# NEAT specific settings
-SIMULATION_COVERAGE: 1  # Coverage for NEAT simulation (>= 1; INTEGER)
-
-# --- Kraken2 Settings ---
+# Kraken 2 specific settings
+# Path to the Kraken 2 database used in the validation step, needs to contain 
+# a taxonomy directory with names.dmp and nodes.dmp
 KRAKEN2_DB_PATH: "kraken_db/test_db"
+# Confidence threshold for Kraken 2 classification
+KRAKEN2_CONFIDENCE: 0.1
+# Minimum number of minimizer hit groups required for classification
+KRAKEN2_MINIMUM_NUM_HIT_GROUPS: 10
 # Optional: Path to directory containing kraken2 and k2mask executables.
 # If null or commented out, executables are assumed to be in PATH (via conda).
 KRAKEN2_BIN_DIR: "../../bin/kraken2_SweBiTS_v2.1.3"
-# KRAKEN2_BIN_DIR: null # Use this line to default to conda
-# TODO: Add confidence and or minimum hit groups here? The classifiable region should depend on the minimum hit groups at the very least.
-
-
-# --- Taxonomy Paths ---
-# Required by selmeout.py script
-TAXONOMY_NODES_PATH: "kraken_db/test_db/taxonomy/nodes.dmp"
-TAXONOMY_NAMES_PATH: "kraken_db/test_db/taxonomy/names.dmp"
 
 
 # --- Resource Configurations ---
@@ -70,20 +67,20 @@ SAMBAMBA_MARKDUP_THREADS: 8
 SAMBAMBA_MARKDUP_MEM_MB: 8000
 SAMBAMBA_MARKDUP_RUNTIME: "2h"
 
-# Check Real Read Coverage Resources (samtools coverage)
+# Check Real Read Coverage Resources
 CHECK_COVERAGE_THREADS: 1
-CHECK_COVERAGE_MEM_MB: 2000
+CHECK_COVERAGE_MEM_MB: 1000
 CHECK_COVERAGE_RUNTIME: "10m"
 
 # Samtools Stats Resources
-SAMTOOLS_STATS_MEM_MB: 2000
-SAMTOOLS_STATS_RUNTIME: "20m"
+SAMTOOLS_STATS_MEM_MB: 1000
+SAMTOOLS_STATS_RUNTIME: "15m"
 SAMTOOLS_STATS_THREADS: 1
 
-# NEAT Simulation Resources
-NEAT_SIM_MEM_MB: 4000
-NEAT_SIM_RUNTIME: "12h"
-NEAT_SIM_THREADS: 1     # NEAT simulation is single-threaded currently, but intends to be parallelized in the future
+# pIRS Simulation Resources
+PIRS_SIM_MEM_MB: 4000
+PIRS_SIM_RUNTIME: "12h"
+PIRS_SIM_THREADS: 4
 
 # Rewrite FASTQ Headers Resources (Python script)
 REWRITE_HEADERS_THREADS: 1
@@ -134,6 +131,13 @@ BEDTOOLS_SUBTRACT_RUNTIME: "15m"
 SORT_BED_THREADS: 1
 SORT_BED_MEM_MB: 1000
 SORT_BED_RUNTIME: "15m"
+
+# Create Genome File Resources
+# Rule: create_genome_file
+# awk one-liner that parses the reference sequence
+CREATE_GENOME_FILE_THREADS: 1
+CREATE_GENOME_FILE_MEM_MB: 1000
+CREATE_GENOME_FILE_RUNTIME: "15m"
 
 # Bedtools Intersect (find real reads overlapping classifiable 
 # regions, rule: intersect_real_reads_with_classifiable_regions) Resources
