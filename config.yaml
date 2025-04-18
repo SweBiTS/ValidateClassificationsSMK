@@ -2,6 +2,7 @@
 # --- Run configuration - Validate Classifications --- #
 # ==================================================== #
 
+
 ############################
 # --- General Settings --- #
 ############################
@@ -19,16 +20,20 @@ RUN_VALIDATION: true  # {true, false}
 FASTQ_FILE_PATTERN: "fastq/taxID-{tax_id}_R{direction}.fq.gz"           # Pattern for input FASTQ files
 MAPPING_SPECIFICATION: "supporting_files/mapping_specification.yaml"    # File mapping tax IDs to genome files
 
+
+###########################
 # --- Tool Parameters --- #
-# BBMap specific settings
+###########################
+
+# --- BBMap specific settings --- #
 BBMAP_MINID: 0.97               # Minimum identity for mapping
 BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
-# pIRS specific settings
+# --- pIRS specific settings --- #
 SIMULATION_COVERAGE: 10  # Coverage for pIRS simulation
 
-# Kraken 2 specific settings
+# --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
 # a taxonomy directory with names.dmp and nodes.dmp
 KRAKEN2_DB_PATH: "kraken_db/test_db"
@@ -41,7 +46,9 @@ KRAKEN2_MINIMUM_NUM_HIT_GROUPS: 10
 KRAKEN2_BIN_DIR: "../../bin/kraken2_SweBiTS_v2.1.3"
 
 
-# --- Resource Configurations ---
+###################################
+# --- Resource configurations --- #
+###################################
 # These are used directly by the rules (and passed to SLURM)
 
 # BBMap Index Resources
