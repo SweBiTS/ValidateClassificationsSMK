@@ -243,7 +243,7 @@ rule classify_all_concatenated:
         db_path = config["KRAKEN2_DB_PATH"],
         # Determine executable path: use specified path or default 'kraken2' command
         # Path already validated in main Snakefile, if no path is given we assume conda execution
-        executable = str(Path(config["KRAKEN2_BIN_DIR"]) / "kraken2") if config.get("KRAKEN2_BIN_DIR") else "kraken2"
+        executable = str(Path(config["KRAKEN2_BIN_DIR"]) / "kraken2") if config.get("KRAKEN2_BIN_DIR") else "kraken2",
         confidence = config.get("KRAKEN2_CONFIDENCE", 0.0),
         mhg = config.get("KRAKEN2_MINIMUM_NUM_HIT_GROUPS", 2)
     log:
@@ -304,10 +304,7 @@ rule extract_correct_read_ids:
     input:
         # Kraken output from simulated reads classification
         kraken_out = KRAKEN_OUT_SIM_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}"),
-        # Taxonomy files (paths from config)
-        nodes = config["TAXONOMY_NODES_PATH"],
-        names = config["TAXONOMY_NAMES_PATH"]
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
     output:
         # List of read IDs (classified_taxid, root_taxid, read_id)
         read_ids = CORRECT_READ_IDS_PATTERN.format(
@@ -338,8 +335,8 @@ rule extract_correct_read_ids:
             "--output {output.read_ids} "
             "--tax_id {params.tax_id} "
             "--mode {params.mode} "
-            "--nodes {input.nodes} "
-            "--names {input.names} "
+            "--nodes {params.nodes} "
+            "--names {params.names} "
             "> {log.path} 2>&1" # Capture script stdout/stderr
 
 # --- Filter correctly classified simulated reads from FASTQ files using seqtk ---

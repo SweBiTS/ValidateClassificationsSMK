@@ -52,15 +52,15 @@ KRAKEN2_BIN_DIR: "../../bin/kraken2_SweBiTS_v2.1.3"
 # These are used directly by the rules (and passed to SLURM)
 
 # BBMap Index Resources
-BBMAP_INDEX_MEM: "8g"  # Referenced by bbmap_index rule in map.smk
-BBMAP_INDEX_MEM_MB: 8000
+BBMAP_INDEX_MEM: "20g"  # Referenced by bbmap_index rule in map.smk
+BBMAP_INDEX_MEM_MB: 22000
 BBMAP_INDEX_THREADS: 4
 BBMAP_INDEX_RUNTIME: "1h"
 
 # BBMap Map Reads Resources
-BBMAP_MAP_MEM: "8g"
-BBMAP_MAP_MEM_MB: 8000
-BBMAP_MAP_THREADS: 8
+BBMAP_MAP_MEM: "20g"
+BBMAP_MAP_MEM_MB: 22000
+BBMAP_MAP_THREADS: 16
 BBMAP_MAP_RUNTIME: "24h"
 
 # Samtools Sort Resources
@@ -85,8 +85,8 @@ SAMTOOLS_STATS_RUNTIME: "15m"
 SAMTOOLS_STATS_THREADS: 1
 
 # pIRS Simulation Resources
-PIRS_SIM_MEM_MB: 4000
-PIRS_SIM_RUNTIME: "12h"
+PIRS_SIM_MEM_MB: 2000
+PIRS_SIM_RUNTIME: "4h"
 PIRS_SIM_THREADS: 4
 
 # Rewrite FASTQ Headers Resources (Python script)
