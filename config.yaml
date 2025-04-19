@@ -65,8 +65,8 @@ BBMAP_MAP_RUNTIME: "24h"
 
 # Samtools Sort Resources
 SAMTOOLS_SORT_THREADS: 2
-SAMTOOLS_SORT_MEM_PER_THREAD: "2G"
-SAMTOOLS_SORT_MEM_PER_THREAD_MB: 2048 # Keep for SLURM calculation
+SAMTOOLS_SORT_MEM_PER_THREAD: "6G"
+SAMTOOLS_SORT_MEM_PER_THREAD_MB: 6144 # Keep for SLURM calculation
 SAMTOOLS_SORT_RUNTIME: "2h"
 
 # Sambamba Markdup Resources
@@ -138,13 +138,6 @@ BEDTOOLS_SUBTRACT_RUNTIME: "15m"
 SORT_BED_THREADS: 1
 SORT_BED_MEM_MB: 1000
 SORT_BED_RUNTIME: "15m"
-
-# Create Genome File Resources
-# Rule: create_genome_file
-# awk one-liner that parses the reference sequence
-CREATE_GENOME_FILE_THREADS: 1
-CREATE_GENOME_FILE_MEM_MB: 1000
-CREATE_GENOME_FILE_RUNTIME: "15m"
 
 # Bedtools Intersect (find real reads overlapping classifiable 
 # regions, rule: intersect_real_reads_with_classifiable_regions) Resources

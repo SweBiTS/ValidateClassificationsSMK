@@ -56,6 +56,19 @@ try:
     if mean_ins is None or stdev_ins is None or avg_read_len is None:
         raise ValueError("Essential parameters missing from JSON.")
     
+    # Validate parameters
+    if mean_ins < 100 or stdev_ins / mean_ins > 0.5:
+        logging.warning(f"Warning: Found indications of bad estimations of insert size.")
+        logging.warning(f"mean_insert_size: {mean_ins}")
+        logging.warning(f"std_dev_insert_size: {stdev_ins}")
+        logging.warning(f"Setting simulation parameters to reasonable defaults.")
+        logging.warning(f"Setting mean insert size: 300")
+        logging.warning(f"Setting stdev of insert size to 20% of insert size: 60")
+        logging.warning(f"Setting average read length: 150 bp")
+        mean_ins = 300
+        stdev_ins = 60
+        avg_read_len = 150
+    
     # Convert to integers
     mean_ins = int(round(mean_ins))
     stdev_ins = int(round(stdev_ins))

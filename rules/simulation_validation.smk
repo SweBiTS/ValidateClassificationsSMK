@@ -73,27 +73,6 @@ def get_all_kraken_outs(wildcards):
     """Gets list of all expected per-sample kraken output files."""
     return get_all_target_outputs(mapping_spec_data, KRAKEN_OUT_SIM_PATTERN)
 
-# Input function for simulate_reads_neat rule, based on the output from the
-# estimate_simulation_params checkpoint
-def get_simulate_reads_input(wildcards):
-    checkpoint_output = checkpoints.estimate_simulation_params.get(
-        tax_id=wildcards.tax_id, genome_basename=wildcards.genome_basename).output.params_json
-
-    with open(checkpoint_output) as f:
-        params = json.load(f)
-
-    if params.get("mean_insert_size", 0.0) > 0.0:
-        # If the mean insert size is greater than 0, we can proceed with simulation
-        logger.info(f"Mean insert size for taxID {wildcards.tax_id} and reference {wildcards.genome_basename} is {params['mean_insert_size']}. Proceeding with simulation.")
-        return {
-            "ref_fasta": get_actual_fasta_path(wildcards),
-            "params_json": checkpoint_output
-        }
-    else:
-        # Return empty list to skip generating reads from this genome
-        logger.warning(f"Mean insert size for taxID {wildcards.tax_id} and reference {wildcards.genome_basename} is {params['mean_insert_size']}. Skipping simulation.")
-        return []
-
 # =============== #
 # --- OUTPUTS --- #
 # =============== #
@@ -112,7 +91,7 @@ if not ALL_EXPECTED_KRAKEN_OUTS:
 # ============= #
 
 # --- Estimate Simulation Parameters using samtools stats ---
-checkpoint estimate_simulation_params:
+rule estimate_simulation_params:
     input:
         # The deduplicated BAM file from the mapping step
         bam = DEDUP_BAM_OUT_PATTERN.format(
@@ -140,8 +119,11 @@ checkpoint estimate_simulation_params:
 # --- Simulate error-free reads from original (unmasked) genome using pIRS ---
 rule simulate_reads_pirs:
     input:
-        # Get fasta file and simulation params file
-        unpack(get_simulate_reads_input)
+        # Input is the original reference genome
+        ref_fasta = get_actual_fasta_path,
+        # Input is the JSON file with simulation parameters
+        params_json = SIM_PARAMS_OUT_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
     output:
         # Output simulated reads (fastq.gz files)
         r1 = SIM_READS_R1_PATTERN.format(
@@ -204,7 +186,7 @@ rule rewrite_fastq_headers:
 # --- Aggregate Rewritten Simulated FASTQs ---
 rule aggregate_sim_fastqs:
     input:
-        # Use input functions (main Snakefile) to get lists of all R1 and R2 files
+        # Use input functions to get lists of all R1 and R2 files
         r1_files = get_all_rewritten_fastqs_r1,
         r2_files = get_all_rewritten_fastqs_r2
     output:
