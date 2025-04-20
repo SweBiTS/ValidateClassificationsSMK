@@ -12,6 +12,7 @@ SORTED_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mappi
 DEDUP_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam")
 DEDUP_BAM_INDEX_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam.bai")
 STATS_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_stats.txt")
+COVERAGE_OUTPUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/coverage.tsv")
 
 # --- log patterns --- #
 MAPPING_LOG_DIR = LOG_DIR / "mapping"
@@ -19,7 +20,7 @@ LOG_BBMAP_INDEX_PATTERN = str(MAPPING_LOG_DIR / "{genome_basename}__bbmap_index.
 LOG_MAP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__bbmap_map.log")
 LOG_SORT_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__samtools_sort.log")
 LOG_MARKDUP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__sambamba_markdup.log")
-
+LOG_CALC_COV_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__coverage.log")
 
 # ==================== #
 # --- HELPER FUNCS --- #
@@ -202,3 +203,34 @@ rule mark_duplicates_sambamba:
         "{output.dedup_bam} "
         "> {log.path} 2>&1 && "
         "rm -rf {params.tmpdir} "
+
+# --- Calculate Real Read Coverage using Samtools --- #
+rule calculate_coverage:
+    input:
+        # Use the final deduplicated BAM
+        bam = DEDUP_BAM_OUT_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    output:
+        # File containing coverage
+        cov_file = COVERAGE_OUTPUT_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    log:
+        path = LOG_CALC_COV_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    conda:
+         ".." / ENVS_DIR / "map.yaml"
+    threads: config.get("CALC_REAL_COV_THREADS", 1)
+    resources:
+        runtime=config.get("CALC_REAL_COV_RUNTIME", "15m"),
+        mem_mb=config.get("CALC_REAL_COV_MEM_MB", 1000),
+        cpus_per_task=config.get("CALC_REAL_COV_THREADS", 1)
+    shell:
+        # Use a samtools/awk pipe to calculate coverage
+        r"""
+        mkdir -p $(dirname {output.cov_file}) &&
+        mkdir -p $(dirname {log.path}) &&
+        {{
+            coverage=$(samtools depth -a {input.bam} | awk '{{sum+=$3; count++}} END {{if (count > 0) print sum/count; else print 0}}') &&
+            echo -e {wildcards.tax_id}\\t{wildcards.genome_basename}\\t${{coverage}} > {output.cov_file} ;
+        }} 2> {log.path}
+        """

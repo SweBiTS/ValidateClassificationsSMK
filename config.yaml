@@ -13,7 +13,7 @@ LOG_LEVEL: "INFO"   # Logging verbosity: {DEBUG, INFO, WARNING, ERROR, CRITICAL}
 # --- Workflow Mode --- #
 # false: only map reads (map.smk).
 # true: run the validation steps (simulation_validation.smk)
-RUN_VALIDATION: true  # {true, false}
+RUN_VALIDATION: True  # {true, false}
 
 # --- Input File Patterns & Specifications --- #
 # Change these as needed
@@ -30,8 +30,11 @@ BBMAP_MINID: 0.97               # Minimum identity for mapping
 BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
 BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
+# Minumum mean depth of coverage of a genome to run the validation pipeline
+MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION: 0.03
+
 # --- pIRS specific settings --- #
-COVERAGE: 10  # Coverage for pIRS simulation
+COVERAGE: 1  # Coverage for pIRS simulation
 
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
@@ -75,9 +78,14 @@ SAMBAMBA_MARKDUP_MEM_MB: 8000
 SAMBAMBA_MARKDUP_RUNTIME: "2h"
 
 # Check Real Read Coverage Resources
-CHECK_COVERAGE_THREADS: 1
-CHECK_COVERAGE_MEM_MB: 1000
-CHECK_COVERAGE_RUNTIME: "10m"
+CALC_REAL_COV_THREADS: 1
+CALC_REAL_COV_MEM_MB: 1000
+CALC_REAL_COV_RUNTIME: "15m"
+
+# Aggregate Coverage Checkpoint Resources
+AGG_COVERAGE_THREADS: 1
+AGG_COVERAGE_MEM_MB: 1000
+AGG_COVERAGE_RUNTIME: "10m"
 
 # Samtools Stats Resources
 SAMTOOLS_STATS_MEM_MB: 1000

@@ -8,34 +8,36 @@ import json
 
 # --- output patterns --- #
 VALIDATION_OUT_DIR = OUTPUT_DIR / "validation"
-SAMTOOLS_STATS_OUT_PATTERN = str(OUTPUT_DIR / "stats/{tax_id}/{genome_basename}/samtools_stats.txt")
-SIM_PARAMS_OUT_PATTERN = str(OUTPUT_DIR / "params/{tax_id}/{genome_basename}/sim_params.json")
-SIM_READS_R1_PATTERN = str(OUTPUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/pirs_1.fq.gz")
-SIM_READS_R2_PATTERN = str(OUTPUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/pirs_2.fq.gz")
-CLEANED_SIM_READS_R1_PATTERN = str(OUTPUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/sim_clean_R1.fq.gz")
-CLEANED_SIM_READS_R2_PATTERN = str(OUTPUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/sim_clean_R2.fq.gz")
-AGG_SIM_R1_PATTERN = str(OUTPUT_DIR / "simulated_reads/aggregated/all_sim_clean_R1.fq.gz")
-AGG_SIM_R2_PATTERN = str(OUTPUT_DIR / "simulated_reads/aggregated/all_sim_clean_R2.fq.gz")
-ALL_KRAKEN_OUT_PATTERN = str(OUTPUT_DIR / "kraken2_sim/aggregated/all_sim.kraken.out")
-ALL_KRAKEN_REPORT_PATTERN = str(OUTPUT_DIR / "kraken2_sim/aggregated/all_sim.kraken.report")
-KRAKEN_OUT_SIM_PATTERN = str(OUTPUT_DIR / "kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.out")
-KRAKEN_REPORT_SIM_PATTERN = str(OUTPUT_DIR / "kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.report")
-CORRECT_READ_IDS_PATTERN = str(OUTPUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_read_ids.txt")
-FILTERED_SIM_READS_R1_PATTERN = str(OUTPUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_R1.fq.gz")
-FILTERED_SIM_READS_R2_PATTERN = str(OUTPUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_R2.fq.gz")
-MAPPED_SIM_BAM_PATTERN = str(OUTPUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.bam")
-MAPPED_SIM_STATS_PATTERN = str(OUTPUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim_stats.txt")
-SORTED_MAPPED_SIM_BAM_PATTERN = str(OUTPUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.sorted.bam")
-MASKED_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "masked_regions/{genome_basename}.masked.bed")
-MASKED_FASTA_PATTERN = str(OUTPUT_DIR / "masked_regions/{genome_basename}.masked_lowercase.fasta")
-COVERED_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "coverage_sim/{tax_id}/{genome_basename}/covered_regions.bed")
-CLASSIFIABLE_REGIONS_BED_PATTERN = str(OUTPUT_DIR / "classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed")
-OVERLAPPING_READS_BAM_PATTERN = str(OUTPUT_DIR / "final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam")
-PER_SAMPLE_SUMMARY_PATTERN = str(OUTPUT_DIR / "summary_reports/{tax_id}/{genome_basename}/summary.tsv")
-PLOT_SCATTER_HTML_PATTERN  = str(OUTPUT_DIR / "plots/{tax_id}/{genome_basename}/scatter_reads_vs_length.html")
+CHK_AGGREGATE_COVERAGE_OUT = str(VALIDATION_OUT_DIR / "aggregated_coverage.tsv")
+SAMTOOLS_STATS_OUT_PATTERN = str(VALIDATION_OUT_DIR / "stats/{tax_id}/{genome_basename}/samtools_stats.txt")
+SIM_PARAMS_OUT_PATTERN = str(VALIDATION_OUT_DIR / "params/{tax_id}/{genome_basename}/sim_params.json")
+SIM_READS_R1_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/pirs_1.fq.gz")
+SIM_READS_R2_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/pirs_2.fq.gz")
+CLEANED_SIM_READS_R1_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/sim_clean_R1.fq.gz")
+CLEANED_SIM_READS_R2_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/sim_clean_R2.fq.gz")
+AGG_SIM_R1_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/aggregated/all_sim_clean_R1.fq.gz")
+AGG_SIM_R2_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/aggregated/all_sim_clean_R2.fq.gz")
+ALL_KRAKEN_OUT_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/aggregated/all_sim.kraken.out")
+ALL_KRAKEN_REPORT_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/aggregated/all_sim.kraken.report")
+KRAKEN_OUT_SIM_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.out")
+KRAKEN_REPORT_SIM_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.report")
+CORRECT_READ_IDS_PATTERN = str(VALIDATION_OUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_read_ids.txt")
+FILTERED_SIM_READS_R1_PATTERN = str(VALIDATION_OUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_R1.fq.gz")
+FILTERED_SIM_READS_R2_PATTERN = str(VALIDATION_OUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_R2.fq.gz")
+MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.bam")
+MAPPED_SIM_STATS_PATTERN = str(VALIDATION_OUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim_stats.txt")
+SORTED_MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.sorted.bam")
+MASKED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "masked_regions/{genome_basename}.masked.bed")
+MASKED_FASTA_PATTERN = str(VALIDATION_OUT_DIR / "masked_regions/{genome_basename}.masked_lowercase.fasta")
+COVERED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "coverage_sim/{tax_id}/{genome_basename}/covered_regions.bed")
+CLASSIFIABLE_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed")
+OVERLAPPING_READS_BAM_PATTERN = str(VALIDATION_OUT_DIR / "final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam")
+PER_SAMPLE_SUMMARY_PATTERN = str(VALIDATION_OUT_DIR / "summary_reports/{tax_id}/{genome_basename}/summary.tsv")
+PLOT_SCATTER_HTML_PATTERN  = str(VALIDATION_OUT_DIR / "plots/{tax_id}/{genome_basename}/scatter_reads_vs_length.html")
 
 # --- log patterns --- #
 VALIDATION_LOG_DIR = LOG_DIR / "validation"
+LOG_CHK_AGGREGATE_COVERAGE = str(VALIDATION_LOG_DIR / "aggregate_coverage/aggregate_coverage.log")
 LOG_ESTIMATE_PARAMS_PATTERN = str(VALIDATION_LOG_DIR / "estimate_sim_params/{tax_id}/{genome_basename}.log")
 LOG_SIMULATE_READS_PATTERN = str(VALIDATION_LOG_DIR / "simulate_reads/{tax_id}/{genome_basename}.log")
 LOG_REWRITE_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "rewrite_headers/{tax_id}/{genome_basename}.log")
@@ -58,24 +60,81 @@ LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "plot_scatter/{tax_id}/{geno
 # --- HELPER FUNCS --- #
 # ==================== #
 
+# TODO: Remove logging? This is called multiple times in the workflow and may clutter the logs
+# TODO: Move the RUN_VALIDATION check to the main Snakefile's rule all?
+
+def get_simulation_validation_targets(wildcards, pattern_template):
+    """
+    Input function generalized for simulation_validation.smk. Waits for aggregate_coverage_results
+    checkpoint, reads the list of passing samples, and expands the final target patterns only for those samples.
+    """
+    final_validation_targets = []
+    if config.get("RUN_VALIDATION", True):
+        logger.info("RUN_VALIDATION is true. Determining final validation targets based on coverage check...")
+        
+        # Step 1: Wait for the coverage aggregation checkpoint to finish
+        passed_samples_tsv = checkpoints.aggregate_coverage_results.get().output[0]
+
+        # Step 2: Read the TSV file into a pandas DataFrame
+        logger.info(f"Reading list of passed samples from checkpoint output: {passed_samples_tsv}")
+        passed_df = pd.read_csv(passed_samples_tsv, sep='\t', dtype=str)
+        logger.info(f"Read {len(passed_df)} rows from passed samples file.")
+        
+        # Step 3: Generate final targets using expand() only for passing samples
+        if not passed_df.empty:
+            logger.info(f"Generating targets for {len(passed_df)} passed samples.")
+            
+            # Extract lists needed for expand's zip mode
+            tax_id_list = passed_df["TaxID"].tolist()
+            genome_basename_list = passed_df["GenomeBasename"].tolist()
+
+            # Generate plot file targets
+            plot_files = expand(pattern_template,
+                                zip,
+                                tax_id=tax_id_list,
+                                genome_basename=genome_basename_list)
+            final_validation_targets.extend(plot_files)
+        else:
+            logger.warning(f"Passed samples file '{passed_samples_tsv}' is empty. No validation targets generated.")
+
+    else:
+        logger.info("RUN_VALIDATION is false. Skipping validation targets.")
+
+    # Return the list of validation targets (may be empty)
+    logger.info(f"Final validation targets: {final_validation_targets}")
+    return final_validation_targets
+
 def get_all_rewritten_fastqs_r1(wildcards):
     """
     Gets list of all header-rewritten R1 FASTQ files. This is for merging all simulated 
     reads before classification so save compute resources (need only load the Kraken database once).
     """
-    return get_all_target_outputs(mapping_spec_data, CLEANED_SIM_READS_R1_PATTERN)
+    return get_simulation_validation_targets(wildcards, CLEANED_SIM_READS_R1_PATTERN)
 
 def get_all_rewritten_fastqs_r2(wildcards):
     """Dito for R2."""
-    return get_all_target_outputs(mapping_spec_data, CLEANED_SIM_READS_R2_PATTERN)
+    return get_simulation_validation_targets(wildcards, CLEANED_SIM_READS_R2_PATTERN)
 
 def get_all_kraken_outs(wildcards):
     """Gets list of all expected per-sample kraken output files."""
     return get_all_target_outputs(mapping_spec_data, KRAKEN_OUT_SIM_PATTERN)
 
+def get_all_coverage_files(wildcards):
+    """Gets list of all per-sample coverage files. For checkpoint rule"""
+    return get_all_target_outputs(mapping_spec_data, COVERAGE_OUTPUT_PATTERN)
+
+def get_all_html_files(wildcards):
+    """Gets list of all per-sample HTML files."""
+    return get_simulation_validation_targets(wildcards, PLOT_SCATTER_HTML_PATTERN)
+
+
 # =============== #
 # --- OUTPUTS --- #
 # =============== #
+
+# TODO: The split kraken output rule should only split into the files that correspond 
+# to the passed tax_id/genome_basename combinations. Currently attempts to split all
+# starting combinations, but it apparently doen't cause a crash - just some empty output folders.
 
 # --- Generate the list of expected Kraken output files (after splitting them) ---
 # This is needed because we can't use a function in the output section of the rule
@@ -89,6 +148,28 @@ if not ALL_EXPECTED_KRAKEN_OUTS:
 # ============= #
 # --- RULES --- #
 # ============= #
+
+# --- Checkpoint: Aggregate Coverage Results and Filter Samples --- #
+checkpoint aggregate_coverage_results:
+    input:
+        # Use helper function to get list of all per-sample coverage files
+        coverage_files = get_all_coverage_files
+    output:
+        # Single TSV listing samples that passed the threshold
+        passed_samples_tsv = CHK_AGGREGATE_COVERAGE_OUT
+    params:
+        cov_threshold = config.get("MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION", 0.1)
+    log:
+        path = LOG_CHK_AGGREGATE_COVERAGE
+    conda:
+        ".." / ENVS_DIR / "analysis.yaml"
+    threads: config.get("AGG_COVERAGE_THREADS", 1)
+    resources:
+        runtime=config.get("AGG_COVERAGE_RUNTIME", "10m"),
+        mem_mb=config.get("AGG_COVERAGE_MEM_MB", 1000),
+        cpus_per_task=config.get("AGG_COVERAGE_THREADS", 1)
+    script:
+        "../scripts/aggregate_and_filter_coverage.py"
 
 # --- Estimate Simulation Parameters using samtools stats ---
 rule estimate_simulation_params:
@@ -616,3 +697,12 @@ rule plot_validation_scatter:
         cpus_per_task=config.get("PLOT_THREADS", 1)
     script:
         "../scripts/plot_scatter_plotly.py"
+
+# Intermediate rule to collect all b outputs
+rule collect_final_validation_outputs:
+    input:
+        get_all_html_files
+    output:
+        "validation_complete.flag"
+    shell:
+        "touch {output}"

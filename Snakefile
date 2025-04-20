@@ -1,9 +1,9 @@
 from pathlib import Path
+import pandas as pd
 import yaml
 import logging
 import sys
 
-# TODO: For de-cluttering of the Snakefile, move all patterns and helper functions into their own files, and import them here.
 # TODO: Implement dynamic resource allocation that depend on the size of the input files.
 # TODO: Implement resubmission of jobs that fail, that increases the memory and/or time resources based on the "attempts" variable
 # TODO: Things for final report:
@@ -55,9 +55,6 @@ INPUT_DIR = Path("input")
 BBMAP_INDEX_DIR = OUTPUT_DIR / "bbmap_indices"
 GENOMES_DIR = Path("supporting_files/genomes")
 ENVS_DIR = Path("envs")
-
-# --- Pattern definitions --- #
-
 
 # --- Validate Kraken2 Path (CONDITIONAL on workflow mode in the main config) --- #
 # Only validate if validation is requested AND a specific binary dir is given
@@ -161,11 +158,8 @@ def get_all_target_outputs(mapping_spec, pattern_template):
 # --- Define Functions for Rule All --- #
 # Final output files from the mapping branch of the workflow (map.smk)
 def get_all_target_mapping_outputs():
-    return get_all_target_outputs(mapping_spec_data, DEDUP_BAM_INDEX_OUT_PATTERN)
+    return get_all_target_outputs(mapping_spec_data, DEDUP_BAM_OUT_PATTERN)
 
-# Final output files from the validation branch of the workflow (simulation_validation.smk)
-def get_all_target_validation_outputs():
-    return get_all_target_outputs(mapping_spec_data, PLOT_SCATTER_HTML_PATTERN)
 
 # ================================== #
 # --- WORKFLOWS AND TARGET FILES --- #
@@ -175,24 +169,14 @@ def get_all_target_validation_outputs():
 include: "rules/map.smk"
 include: "rules/simulation_validation.smk"
 
-# --- Define Conditional Targets for Rule All --- #
-def get_final_targets():
-    # Always include the main mapping output indices (map.smk)
-    targets = get_all_target_mapping_outputs()
-
-    # Conditionally add the single final validation report file
-    if config.get("RUN_VALIDATION", True):
-        logger.info("Adding final validation summary reports to rule all targets.")
-        final_validation_outputs = get_all_target_validation_outputs()
-        targets.extend(final_validation_outputs)
-    else:
-        logger.info("Skipping validation pipeline targets for rule all.")
-
-    return targets
-
 # --- Define the final targets of the workflow --- #
 localrules: all
 
 rule all:
     input:
-        get_final_targets()
+        # Get all target files from the mapping branch of the workflow (map.smk)
+        get_all_target_mapping_outputs(),
+
+        # The final output file of the validation branch of the workflow (simulation_validation.smk)
+        # Triggers the coverage checkpoint which determines which tax_id/genome_basename pairs to validate
+        "validation_complete.flag"
