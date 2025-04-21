@@ -43,7 +43,7 @@ KRAKEN2_CONFIDENCE: 0.1
 KRAKEN2_MINIMUM_NUM_HIT_GROUPS: 10
 # Optional: Path to directory containing kraken2 and k2mask executables.
 # If null or commented out, executables are assumed to be in PATH (via conda).
-KRAKEN2_BIN_DIR: "/pfs/proj/nobackup/fs/projnb10/snic2019-35-73/bin/kraken2_SweBiTS/scripts"
+#KRAKEN2_BIN_DIR: "/pfs/proj/nobackup/fs/projnb10/snic2019-35-73/bin/kraken2_SweBiTS/scripts"
 
 
 ###################################
