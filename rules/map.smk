@@ -26,11 +26,6 @@ LOG_CALC_COV_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__covera
 # --- HELPER FUNCS --- #
 # ==================== #
 
-# LÄGG TILL /usr/bin/time COMMAND AT BEGINNING OF SHELL COMMANDS (AND IN SCRIPTS)
-# f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f' <-- för att lägga inn i shell commands
-# Ändra output format så att man har en tabell, och ändra output file
-# då kan vi lätt samla ihop allt i slutet
-
 # --- Find Actual Genome File Path ---
 def get_actual_fasta_path(wildcards):
     """Finds the full path to the genome file, checking common extensions."""
