@@ -86,7 +86,7 @@ AGG_COVERAGE_RUNTIME: "10m"
 
 # Samtools Stats Resources
 SAMTOOLS_STATS_MEM_MB: 1000
-SAMTOOLS_STATS_RUNTIME: "15m"
+SAMTOOLS_STATS_RUNTIME: "1h"
 SAMTOOLS_STATS_THREADS: 1
 
 # pIRS Simulation Resources
@@ -97,12 +97,12 @@ PIRS_SIM_THREADS: 4
 # Rewrite FASTQ Headers Resources (Python script)
 REWRITE_HEADERS_THREADS: 1
 REWRITE_HEADERS_MEM_MB: 1000
-REWRITE_HEADERS_RUNTIME: "60m"
+REWRITE_HEADERS_RUNTIME: "1h"
 
 # Concatenate FASTQ Resources (cat)
 AGGREGATE_FASTQ_THREADS: 2
 AGGREGATE_FASTQ_MEM_MB: 2000
-AGGREGATE_FASTQ_RUNTIME: "60m"
+AGGREGATE_FASTQ_RUNTIME: "1h"
 
 # Kraken 2 Resources
 KRAKEN2_THREADS: 72
@@ -112,17 +112,17 @@ KRAKEN2_RUNTIME: "3h"
 # Split Kraken Output Resources (Python script)
 SPLIT_KRAKEN_THREADS: 1
 SPLIT_KRAKEN_MEM_MB: 2000
-SPLIT_KRAKEN_RUNTIME: "60m"
+SPLIT_KRAKEN_RUNTIME: "1h"
 
 # selmeout.py (Extract IDs) Resources
 EXTRACT_IDS_THREADS: 1
 EXTRACT_IDS_MEM_MB: 3000
-EXTRACT_IDS_RUNTIME: "60m"
+EXTRACT_IDS_RUNTIME: "1h"
 
 # seqtk subseq (Filtering FASTQ) Resources
 SEQTK_THREADS: 1
 SEQTK_MEM_MB: 2000
-SEQTK_RUNTIME: "60m"
+SEQTK_RUNTIME: "1h"
 
 # Bedtools GenomeCov/Merge Resources (calculate_simulated_coverage)
 CALC_SIM_COV_THREADS: 1
@@ -132,7 +132,7 @@ CALC_SIM_COV_RUNTIME: "30m"
 # Resources for k2mask (rule: find_masked_regions)
 K2MASK_THREADS: 1
 K2MASK_MEM_MB: 2000
-K2MASK_RUNTIME: "60m"
+K2MASK_RUNTIME: "1h"
 
 # Bedtools Subtract Resources (rule: define_classifiable_regions)
 BEDTOOLS_SUBTRACT_THREADS: 1
