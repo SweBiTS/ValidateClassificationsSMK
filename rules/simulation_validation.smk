@@ -558,8 +558,10 @@ rule find_masked_regions:
         masked_fasta = MASKED_FASTA_PATTERN.format(
             genome_basename="{genome_basename}")
     params:
-        # Determine k2mask executable path (uses KRAKEN2_BIN_DIR if set, else 'k2mask')
-        k2mask_exec = str(Path(config["KRAKEN2_BIN_DIR"]) / "k2mask") if config.get("KRAKEN2_BIN_DIR") else "k2mask"
+        # Determine masker executable path (uses k2mask if KRAKEN2_BIN_DIR, else dustmasker)
+        # For some reason k2mask is available if compiling kraken2 from source yourself, but not among
+        # the conda binaries, there it's dustmasker instead
+        masker_exec = str(Path(config["KRAKEN2_BIN_DIR"]) / "k2mask") if config.get("KRAKEN2_BIN_DIR") else "dustmasker"
     log:
         path = LOG_MASKED_REGIONS_PATTERN.format(
             genome_basename="{genome_basename}")
