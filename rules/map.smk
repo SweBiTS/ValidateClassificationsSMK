@@ -226,7 +226,7 @@ rule calculate_coverage:
          ".." / ENVS_DIR / "map.yaml"
     threads: config.get("CALC_REAL_COV_THREADS", 1)
     resources:
-        runtime=config.get("CALC_REAL_COV_RUNTIME", "15m"),
+        runtime=config.get("CALC_REAL_COV_RUNTIME", "60m"),
         mem_mb=config.get("CALC_REAL_COV_MEM_MB", 1000),
         cpus_per_task=config.get("CALC_REAL_COV_THREADS", 1)
     shell:
