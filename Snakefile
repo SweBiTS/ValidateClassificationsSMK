@@ -26,28 +26,6 @@ import sys
 # --- Configuration file --- #
 configfile: "config.yaml"
 
-# --- Setup Logging --- #
-# Get log level string from config, default to INFO, convert to upper case
-log_level_str = config.get("LOG_LEVEL", "INFO").upper()
-
-# Convert string level name to the corresponding logging constant
-log_level_int = logging.getLevelName(log_level_str)
-
-# Validate the level
-if not isinstance(log_level_int, int):
-    print(f"Warning: Invalid LOG_LEVEL '{log_level_str}' provided in config.yaml. Defaulting to INFO.", file=sys.stderr)
-    log_level_int = logging.INFO
-
-# Configure root logger
-logging.basicConfig(
-    level=log_level_int,
-    format='%(asctime)s %(levelname)-8s %(name)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    stream=sys.stderr)
-
-# Log the effective level being used
-logging.info(f"Logging level set to: {logging.getLevelName(logging.getLogger().getEffectiveLevel())}")
-
 # --- Define Core Paths --- #
 LOG_DIR = Path("logs")
 OUTPUT_DIR = Path("output")
@@ -55,12 +33,11 @@ INPUT_DIR = Path("input")
 BBMAP_INDEX_DIR = OUTPUT_DIR / "bbmap_indices"
 GENOMES_DIR = Path("supporting_files/genomes")
 ENVS_DIR = Path("envs")
+MAPPING_SPEC = Path(config["MAPPING_SPECIFICATION"])
 
-# --- Validate Kraken2 Path (CONDITIONAL on workflow mode in the main config) --- #
-# Only validate if validation is requested AND a specific binary dir is given
+# --- Validate Kraken2 Path (conditinal on workflow mode in the main config) --- #
 if config.get("RUN_VALIDATION", True) and config.get("KRAKEN2_BIN_DIR"):
     kraken2_bin_dir = Path(config["KRAKEN2_BIN_DIR"]).resolve()
-    logger.info(f"RUN_VALIDATION is true and KRAKEN2_BIN_DIR specified. Validating provided Kraken 2 path: {kraken2_bin_dir}")
     if not kraken2_bin_dir.is_dir():
         sys.exit(f"ERROR: KRAKEN2_BIN_DIR is not a valid directory: {kraken2_bin_dir}")
     kraken2_exe_path = kraken2_bin_dir / "kraken2"
@@ -69,12 +46,7 @@ if config.get("RUN_VALIDATION", True) and config.get("KRAKEN2_BIN_DIR"):
          sys.exit(f"ERROR: 'kraken2' not found or not executable in {kraken2_bin_dir}")
     if not k2mask_exe_path.is_file() or not os.access(k2mask_exe_path, os.X_OK):
          sys.exit(f"ERROR: 'k2mask' not found or not executable in {kraken2_bin_dir}")
-    logger.info(f"Validated that Kraken 2 executables are found in the specified directory.")
-elif config.get("RUN_VALIDATION", True):
-    logger.info("RUN_VALIDATION is true, workflow will run mapping-based classification validation.")
-    logger.info("KRAKEN2_BIN_DIR not set. Rules will rely on conda environment for Kraken 2 tools.")
-else:
-    logger.info("RUN_VALIDATION is false, workflow will only run the mapping pipeline.")
+    print(f"WORKFLOW_INFO: Will use Kraken 2 binaries in directory {kraken2_bin_dir}")
 
 # --- Environment Detection --- #
 # Detect WSL vs native Linux. BBMap JNI acceleration (`usejni=t`) failed on WSL
@@ -83,100 +55,95 @@ else:
 IS_WSL = 'WSL_DISTRO_NAME' in os.environ or 'WSL_INTEROP' in os.environ
 
 if IS_WSL:
-    logger.warning("WSL environment detected. Explicitly disabling BBMap JNI acceleration (usejni=f) due to known compatibility issues.")
+    print("WORKFLOW_INFO: WSL environment detected. Explicitly disabling BBMap JNI acceleration (usejni=f) due to known compatibility issues.")
     BBMAP_JNI_FLAG = "usejni=f"
 else:
-    logger.info("Non-WSL environment detected. Enabling BBMap JNI acceleration (usejni=t).")
+    print("WORKFLOW_INFO: Non-WSL environment detected. Enabling BBMap JNI acceleration (usejni=t).")
     BBMAP_JNI_FLAG = "usejni=t"
-
-# --- Load Mapping Specification --- #
-config_mapping_spec_path = Path(config["MAPPING_SPECIFICATION"])
-try:
-    logger.info(f"Loading mapping specification from: {config_mapping_spec_path}")
-    with open(config_mapping_spec_path, 'r') as f:
-        raw_mapping_spec = yaml.safe_load(f)
-        if raw_mapping_spec is None:
-            mapping_spec_data = {}
-            logger.warning(f"Mapping specification file '{config_mapping_spec_path}' is empty or invalid.")
-        else:
-            mapping_spec_data = {str(k): v for k, v in raw_mapping_spec.items()}
-            logger.info(f"Loaded {len(mapping_spec_data)} taxID entries from spec file.")
-except FileNotFoundError:
-    logger.error(f"Mapping specification file not found at '{config_mapping_spec_path}'. Exiting.")
-    sys.exit(1)
-except yaml.YAMLError as e:
-    logger.error(f"Error parsing YAML file '{config_mapping_spec_path}': {e}. Exiting.")
-    sys.exit(1)
-except Exception as e:
-    logger.error(f"An unexpected error occurred reading '{config_mapping_spec_path}': {e}. Exiting.")
-    sys.exit(1)
-
 
 # ==================== #
 # --- HELPER FUNCS --- #
 # ==================== #
 
-# --- Get Genome Basename --- #
-def get_genome_basename(fasta_filename):
-    if fasta_filename and isinstance(fasta_filename, str):
-        return Path(fasta_filename).stem
-    logger.warning(f"Invalid or non-string genome filename '{fasta_filename}' encountered in spec file.")
-    return None
+# --- Load Mapping Specification --- #
+def load_mapping_spec(config_mapping_spec_path):
+    """
+    Load the mapping specification from the provided path. The mapping specification
+    is a YAML file that contains taxID entries and their corresponding genome FASTA files.
+    """
+    try:
+        with open(config_mapping_spec_path, 'r') as f:
+            raw_mapping_spec = yaml.safe_load(f)
+            if raw_mapping_spec is None:
+                mapping_spec_data = {}
+                print(f"WORKFLOW_INFO: Mapping specification file '{config_mapping_spec_path}' is empty or invalid.")
+            else:
+                mapping_spec_data = {str(k): v for k, v in raw_mapping_spec.items()}
+                print(f"WORKFLOW_INFO: Loaded {len(mapping_spec_data)} taxID entries from mapping specification file.")
+    except FileNotFoundError:
+        sys.exit(f"WORKFLOW_INFO: Mapping specification file not found at '{config_mapping_spec_path}'. Exiting.")
+    except yaml.YAMLError as e:
+        sys.exit(f"WORKFLOW_INFO: Error parsing YAML file '{config_mapping_spec_path}': {e}. Exiting.")
+    except Exception as e:
+        sys.exit(f"WORKFLOW_INFO: An unexpected error occurred reading '{config_mapping_spec_path}': {e}. Exiting.")
+    
+    return mapping_spec_data
 
 # --- Generate Target Output Files Function --- #
-def get_all_target_outputs(mapping_spec, pattern_template):
+def get_target_outputs(mapping_spec, pattern_template):
     """
     Generates a list of output files based on the mapping specification and the
     provided file name pattern. Finds the wildcards from the mapping specification
     and applies them to the provided pattern template.
     """
     target_files = []
-    logger.info(f"Generating target output file list using pattern: {pattern_template}")
-    count = 0
-    warning_count = 0
     for tax_id, genome_list in mapping_spec.items():
-        if not isinstance(genome_list, list):
-             logger.warning(f"Expected list of genomes for tax_id {tax_id}, found {type(genome_list)}. Skipping this entry.")
-             warning_count += 1
-             continue
         for genome_fasta in genome_list:
-            genome_basename = get_genome_basename(genome_fasta)
-            if genome_basename:
-                target_path = Path(pattern_template.format(
-                    tax_id=tax_id,
-                    genome_basename=genome_basename))
-                target_files.append(str(target_path))
-                count += 1
-            else:
-                warning_count += 1
-                pass
-    logger.info(f"Generated {count} target output files.")
-    if warning_count > 0:
-        logger.warning(f"Encountered {warning_count} issues while processing mapping specification.")
+            genome_basename = Path(genome_fasta).stem
+            target_path = Path(pattern_template.format(
+                tax_id=tax_id,
+                genome_basename=genome_basename))
+            target_files.append(str(target_path))
+    
     return target_files
 
-# --- Define Functions for Rule All --- #
-# Final output files from the mapping branch of the workflow (map.smk)
-def get_all_target_mapping_outputs():
-    return get_all_target_outputs(mapping_spec_data, DEDUP_BAM_OUT_PATTERN)
+# --- Target Function for Rule All --- #
+def get_workflow_target():
+    """
+    Determines the final target file for the workflow based on the RUN_VALIDATION flag in the config.
+    
+    Target file is always at least the mapping branch target file.
+
+    If validation:
+        Add a flag file that triggers the coverage checkpoint to run, which determines the combinations of
+        tax_id/genome_basename values to validate.
+    """
+    final_target = MAPPING_BRANCH_TARGET
+    if config.get("RUN_VALIDATION", True):
+        logger.info("RUN_VALIDATION=TRUE. Running the validation branch of the workflow.")
+        final_target = [MAPPING_BRANCH_TARGET, VALIDATION_BRANCH_TARGET]
+    return final_target
 
 
 # ================================== #
 # --- WORKFLOWS AND TARGET FILES --- #
 # ================================== #
 
+# --- Final Targets --- #
+MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "mapping.done")
+VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "validation.done")
+
+# --- Load the mapping specification --- #
+MAPPING_SPEC_DATA = load_mapping_spec(MAPPING_SPEC)
+
 # --- Include Rule Modules --- #
 include: "rules/map.smk"
 include: "rules/simulation_validation.smk"
 
-# --- Define the final targets of the workflow --- #
 localrules: all
 
+# --- Define the final targets of the workflow --- #
 rule all:
     input:
-        # Get all target files from the mapping branch of the workflow (map.smk)
-        get_all_target_mapping_outputs(),
-
-        # The final output file of the validation branch of the workflow (simulation_validation.smk)
-        # Triggers the coverage checkpoint which determines which tax_id/genome_basename pairs to validate
-        "validation_complete.flag"
+        # Depends on the RUN_VALIDATION flag in the config
+        get_workflow_target()

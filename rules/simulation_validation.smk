@@ -61,7 +61,6 @@ LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "plot_scatter/{tax_id}/{geno
 # ==================== #
 
 # TODO: Remove logging? This is called multiple times in the workflow and may clutter the logs
-# TODO: Move the RUN_VALIDATION check to the main Snakefile's rule all?
 
 def get_simulation_validation_targets(wildcards, pattern_template):
     """
@@ -69,39 +68,30 @@ def get_simulation_validation_targets(wildcards, pattern_template):
     checkpoint, reads the list of passing samples, and expands the final target patterns only for those samples.
     """
     final_validation_targets = []
-    if config.get("RUN_VALIDATION", True):
-        logger.info("RUN_VALIDATION is true. Determining final validation targets based on coverage check...")
+    
+    # Step 1: Wait for the coverage aggregation checkpoint to finish
+    passed_samples_tsv = checkpoints.aggregate_coverage_results.get().output[0]
+
+    # Step 2: Read the TSV file into a pandas DataFrame
+    passed_df = pd.read_csv(passed_samples_tsv, sep='\t', dtype=str)
+    
+    # Step 3: Generate final targets using expand() only for passing samples
+    if not passed_df.empty:
         
-        # Step 1: Wait for the coverage aggregation checkpoint to finish
-        passed_samples_tsv = checkpoints.aggregate_coverage_results.get().output[0]
+        # Extract lists needed for expand's zip mode
+        tax_id_list = passed_df["TaxID"].tolist()
+        genome_basename_list = passed_df["GenomeBasename"].tolist()
 
-        # Step 2: Read the TSV file into a pandas DataFrame
-        logger.info(f"Reading list of passed samples from checkpoint output: {passed_samples_tsv}")
-        passed_df = pd.read_csv(passed_samples_tsv, sep='\t', dtype=str)
-        logger.info(f"Read {len(passed_df)} rows from passed samples file.")
-        
-        # Step 3: Generate final targets using expand() only for passing samples
-        if not passed_df.empty:
-            logger.info(f"Generating targets for {len(passed_df)} passed samples.")
-            
-            # Extract lists needed for expand's zip mode
-            tax_id_list = passed_df["TaxID"].tolist()
-            genome_basename_list = passed_df["GenomeBasename"].tolist()
-
-            # Generate plot file targets
-            plot_files = expand(pattern_template,
-                                zip,
-                                tax_id=tax_id_list,
-                                genome_basename=genome_basename_list)
-            final_validation_targets.extend(plot_files)
-        else:
-            logger.warning(f"Passed samples file '{passed_samples_tsv}' is empty. No validation targets generated.")
-
+        # Generate plot file targets
+        plot_files = expand(pattern_template,
+                            zip,
+                            tax_id=tax_id_list,
+                            genome_basename=genome_basename_list)
+        final_validation_targets.extend(plot_files)
     else:
-        logger.info("RUN_VALIDATION is false. Skipping validation targets.")
+        logger.warning(f"Passed samples file '{passed_samples_tsv}' is empty. No validation targets generated.")
 
     # Return the list of validation targets (may be empty)
-    logger.info(f"Final validation targets: {final_validation_targets}")
     return final_validation_targets
 
 def get_all_rewritten_fastqs_r1(wildcards):
@@ -117,11 +107,7 @@ def get_all_rewritten_fastqs_r2(wildcards):
 
 def get_all_kraken_outs(wildcards):
     """Gets list of all expected per-sample kraken output files."""
-    return get_all_target_outputs(mapping_spec_data, KRAKEN_OUT_SIM_PATTERN)
-
-def get_all_coverage_files(wildcards):
-    """Gets list of all per-sample coverage files. For checkpoint rule"""
-    return get_all_target_outputs(mapping_spec_data, COVERAGE_OUTPUT_PATTERN)
+    return get_target_outputs(MAPPING_SPEC_DATA, KRAKEN_OUT_SIM_PATTERN)
 
 def get_all_html_files(wildcards):
     """Gets list of all per-sample HTML files."""
@@ -148,6 +134,10 @@ if not ALL_EXPECTED_KRAKEN_OUTS:
 # ============= #
 # --- RULES --- #
 # ============= #
+
+localrules:
+    aggregate_coverage_results,
+    collect_validation_branch
 
 # --- Checkpoint: Aggregate Coverage Results and Filter Samples --- #
 checkpoint aggregate_coverage_results:
@@ -699,10 +689,10 @@ rule plot_validation_scatter:
         "../scripts/plot_scatter_plotly.py"
 
 # Intermediate rule to collect all b outputs
-rule collect_final_validation_outputs:
+rule collect_validation_branch:
     input:
         get_all_html_files
     output:
-        "validation_complete.flag"
+        VALIDATION_BRANCH_TARGET
     shell:
         "touch {output}"

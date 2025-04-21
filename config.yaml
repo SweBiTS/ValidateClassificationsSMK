@@ -7,9 +7,6 @@
 # --- General Settings --- #
 ############################
 
-# --- Log level --- #
-LOG_LEVEL: "INFO"   # Logging verbosity: {DEBUG, INFO, WARNING, ERROR, CRITICAL}
-
 # --- Workflow Mode --- #
 # false: only map reads (map.smk).
 # true: run the validation steps (simulation_validation.smk)

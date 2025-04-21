@@ -26,6 +26,11 @@ LOG_CALC_COV_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__covera
 # --- HELPER FUNCS --- #
 # ==================== #
 
+# LÄGG TILL /usr/bin/time COMMAND AT BEGINNING OF SHELL COMMANDS (AND IN SCRIPTS)
+# f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f' <-- för att lägga inn i shell commands
+# Ändra output format så att man har en tabell, och ändra output file
+# då kan vi lätt samla ihop allt i slutet
+
 # --- Find Actual Genome File Path ---
 def get_actual_fasta_path(wildcards):
     """Finds the full path to the genome file, checking common extensions."""
@@ -46,10 +51,15 @@ def get_actual_fasta_path(wildcards):
         f"Genome file for basename '{basename}' not found with any of the extensions "
         f"{extensions_to_check} in directory '{genomes_dir}'")
 
+def get_all_coverage_files(wildcards):
+    """Gets list of all per-sample coverage files. For collection rule at the end + checkpoint"""
+    return get_target_outputs(MAPPING_SPEC_DATA, COVERAGE_OUTPUT_PATTERN)
 
 # ============= #
 # --- RULES --- #
 # ============= #
+
+localrules: collect_mapping_branch
 
 # --- Index Reference Genome using BBMap --- #
 rule bbmap_index:
@@ -234,3 +244,12 @@ rule calculate_coverage:
             echo -e {wildcards.tax_id}\\t{wildcards.genome_basename}\\t${{coverage}} > {output.cov_file} ;
         }} 2> {log.path}
         """
+
+# --- Collect Coverage Results --- #
+rule collect_mapping_branch:
+    input:
+        get_all_coverage_files
+    output:
+        MAPPING_BRANCH_TARGET
+    shell:
+        "touch {output}"
