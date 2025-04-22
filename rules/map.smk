@@ -7,6 +7,8 @@ from pathlib import Path
 
 # --- output patterns --- #
 MAPPING_OUT_DIR = OUTPUT_DIR / "mapping"
+BBMAP_INDEX_DIR = OUTPUT_DIR / "bbmap_indices"
+BBMAP_INDEX_DIR_PATTERN = str(BBMAP_INDEX_DIR / "{genome_basename}")
 RAW_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping.bam")
 SORTED_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping.sorted.bam")
 DEDUP_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam")
@@ -61,13 +63,13 @@ rule bbmap_index:
     input:
         fasta = get_actual_fasta_path
     output:
-        idx_dir = directory(BBMAP_INDEX_DIR / "{genome_basename}")
+        idx_dir = directory(BBMAP_INDEX_DIR_PATTERN)
+        # idx_dir = directory(BBMAP_INDEX_DIR / "{genome_basename}")
     params:
         build_id = 1,
         mem = config.get("BBMAP_INDEX_MEM", "20g")
     log:
-        path = LOG_BBMAP_INDEX_PATTERN.format(
-            genome_basename="{genome_basename}")
+        path = LOG_BBMAP_INDEX_PATTERN
     conda:
         ".." / ENVS_DIR / "map.yaml"
     threads: config.get("BBMAP_INDEX_THREADS", 4)
@@ -92,18 +94,12 @@ rule bbmap_index:
 # --- Map Reads to Reference using BBMap --- #
 rule bbmap_map_reads:
     input:
-        idx_dir = rules.bbmap_index.output.idx_dir,
-        r1 = lambda wildcards: str(
-            INPUT_DIR / config["FASTQ_FILE_PATTERN"].format(
-                tax_id=wildcards.tax_id, direction="1")),
-        r2 = lambda wildcards: str(
-            INPUT_DIR / config["FASTQ_FILE_PATTERN"].format(
-                tax_id=wildcards.tax_id, direction="2"))
+        idx_dir = BBMAP_INDEX_DIR_PATTERN,
+        r1 = STARTING_FASTQ_PATTERN.format(tax_id="{tax_id}", read_pair="1"),
+        r2 = STARTING_FASTQ_PATTERN.format(tax_id="{tax_id}", read_pair="2")
     output:
-        bam = RAW_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}"),
-        stats = STATS_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        bam = RAW_BAM_OUT_PATTERN,
+        stats = STATS_OUT_PATTERN
     params:
         build_id = 1,
         mem = config.get("BBMAP_MAP_MEM", "6g"),
@@ -111,8 +107,7 @@ rule bbmap_map_reads:
         ambig = config["BBMAP_AMBIGUOUS"],
         pairedonly = config["BBMAP_PAIREDONLY"]
     log:
-        path = LOG_MAP_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        path = LOG_MAP_PATTERN
     conda:
         ".." / ENVS_DIR / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 4)
@@ -144,17 +139,14 @@ rule bbmap_map_reads:
 # --- Sort BAM file using Samtools --- #
 rule samtools_sort:
     input:
-        bam = RAW_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        bam = RAW_BAM_OUT_PATTERN
     output:
-        bam = SORTED_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        bam = SORTED_BAM_OUT_PATTERN
     params:
         # Memory per thread for sorting
         mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G")
     log:
-        path = LOG_SORT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        path = LOG_SORT_PATTERN
     conda:
         ".." / ENVS_DIR / "map.yaml"
     threads: config.get("SAMTOOLS_SORT_THREADS", 2)
@@ -166,24 +158,20 @@ rule samtools_sort:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
         "samtools sort "
-        "-@ {threads} "                 # Number of sorting threads
-        "-m {params.mem_per_thread} "   # Memory per thread
-        "-o {output.bam} "              # Output file
-        "{input.bam} "                  # Input file
-        "2> {log.path}"                 # Log stderr
+            "-@ {threads} "                 # Number of sorting threads
+            "-m {params.mem_per_thread} "   # Memory per thread
+            "-o {output.bam} "              # Output file
+            "{input.bam} 2> {log.path} "    # Input file
 
 # --- Mark/Remove Duplicates using Sambamba --- #
 rule mark_duplicates_sambamba:
     input:
         # Input is the coordinate-sorted BAM from samtools_sort
-        sorted_bam = SORTED_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        sorted_bam = SORTED_BAM_OUT_PATTERN
     output:
         # Output is the BAM file with duplicates removed
-        dedup_bam = DEDUP_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}"),
-        index = DEDUP_BAM_INDEX_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        dedup_bam = DEDUP_BAM_OUT_PATTERN,
+        index = DEDUP_BAM_INDEX_OUT_PATTERN
     params:
         # Define a temporary directory relative to the output
         tmpdir = lambda wildcards, output: Path(output.dedup_bam).parent / "tmp_sambamba_markdup"
@@ -213,15 +201,12 @@ rule mark_duplicates_sambamba:
 rule calculate_coverage:
     input:
         # Use the final deduplicated BAM
-        bam = DEDUP_BAM_OUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        bam = DEDUP_BAM_OUT_PATTERN
     output:
         # File containing coverage
-        cov_file = COVERAGE_OUTPUT_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        cov_file = COVERAGE_OUTPUT_PATTERN
     log:
-        path = LOG_CALC_COV_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        path = LOG_CALC_COV_PATTERN
     conda:
          ".." / ENVS_DIR / "map.yaml"
     threads: config.get("CALC_REAL_COV_THREADS", 1)

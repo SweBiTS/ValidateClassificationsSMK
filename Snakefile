@@ -26,14 +26,14 @@ import sys
 # --- Configuration file --- #
 configfile: "config.yaml"
 
-# --- Define Core Paths --- #
+# --- Define Core Paths and Patterns--- #
 LOG_DIR = Path("logs")
 OUTPUT_DIR = Path("output")
 INPUT_DIR = Path("input")
-BBMAP_INDEX_DIR = OUTPUT_DIR / "bbmap_indices"
 GENOMES_DIR = Path("supporting_files/genomes")
 ENVS_DIR = Path("envs")
 MAPPING_SPEC = Path(config["MAPPING_SPECIFICATION"])
+STARTING_FASTQ_PATTERN = str(INPUT_DIR / config["FASTQ_FILE_PATTERN"])
 
 # --- Validate Kraken2 Path (conditinal on workflow mode in the main config) --- #
 if config.get("RUN_VALIDATION", True) and config.get("KRAKEN2_BIN_DIR"):
