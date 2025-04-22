@@ -6,6 +6,9 @@ import json
 # --- FILE PATH PATTERNS --- #
 # ========================== #
 
+# TODO: update r1 and r2 patterns to also take {direction} wildcard and leverage that in the rules. That is, make generalized 
+# rules for rewriting fastq headers and filtering fastqs after classification.
+
 # --- output patterns --- #
 VALIDATION_OUT_DIR = OUTPUT_DIR / "validation"
 CHK_AGGREGATE_COVERAGE_OUT = str(VALIDATION_OUT_DIR / "aggregated_coverage.tsv")
@@ -40,7 +43,8 @@ VALIDATION_LOG_DIR = LOG_DIR / "validation"
 LOG_CHK_AGGREGATE_COVERAGE = str(VALIDATION_LOG_DIR / "aggregate_coverage/aggregate_coverage.log")
 LOG_ESTIMATE_PARAMS_PATTERN = str(VALIDATION_LOG_DIR / "estimate_sim_params/{tax_id}/{genome_basename}.log")
 LOG_SIMULATE_READS_PATTERN = str(VALIDATION_LOG_DIR / "simulate_reads/{tax_id}/{genome_basename}.log")
-LOG_REWRITE_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "rewrite_headers/{tax_id}/{genome_basename}.log")
+LOG_REWRITE_R1_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "rewrite_headers/{tax_id}/{genome_basename}_R1.log")
+LOG_REWRITE_R2_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "rewrite_headers/{tax_id}/{genome_basename}_R2.log")
 LOG_AGG_FASTQ_PATTERN = str(VALIDATION_LOG_DIR / "aggregate_sim_fastqs/aggregate_sim_fastqs.log")
 LOG_KRAKEN2_BATCH_PATTERN = str(VALIDATION_LOG_DIR / "kraken2_sim/classify_all_simulated.log")
 LOG_SPLIT_KRAKEN_PATTERN = str(VALIDATION_LOG_DIR / "split_kraken/split_kraken_output.log")
@@ -59,8 +63,6 @@ LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "plot_scatter/{tax_id}/{geno
 # ==================== #
 # --- HELPER FUNCS --- #
 # ==================== #
-
-# TODO: Remove logging? This is called multiple times in the workflow and may clutter the logs
 
 def get_simulation_validation_targets(wildcards, pattern_template):
     """
@@ -211,47 +213,76 @@ rule simulate_reads_pirs:
         runtime=config.get("PIRS_SIM_RUNTIME", "2h"),
         mem_mb=config.get("PIRS_SIM_MEM_MB", 4000),
         cpus_per_task=config.get("PIRS_SIM_THREADS", 4)
+    retries: 3
     script:
         "../scripts/run_pirs_simulate_reads.py"
 
 # --- Rewrite FASTQ Headers to Embed Source Info (using awk) ---
-rule rewrite_fastq_headers:
+rule rewrite_fastq_r1_headers:
     input:
         # Input are the raw simulated reads from NEAT (that have appended "/1" or "/2" to the headers)
         r1 = SIM_READS_R1_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}"),
-        r2 = SIM_READS_R2_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     output:
         # Output are cleaned FASTQ files
         r1 = CLEANED_SIM_READS_R1_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}"),
-        r2 = CLEANED_SIM_READS_R2_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     log:
-        path = LOG_REWRITE_HEADERS_PATTERN.format(
+        path = LOG_REWRITE_R1_HEADERS_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}")
     params:
         tax_id = "{tax_id}",
-        genome_basename = "{genome_basename}"
+        genome_basename = "{genome_basename}",
+        pigz_threads = 2
     conda:
         ".." / ENVS_DIR / "extract_reads.yaml"
-    threads: config.get("REWRITE_HEADERS_THREADS", 1)
+    threads: config.get("REWRITE_HEADERS_THREADS", 5)
     resources:
-        runtime=config.get("REWRITE_HEADERS_RUNTIME", "60m"),
-        mem_mb=config.get("REWRITE_HEADERS_MEM_MB", 1000),
-        cpus_per_task=config.get("REWRITE_HEADERS_THREADS", 1)
+        runtime=config.get("REWRITE_HEADERS_RUNTIME", "2h"),
+        mem_mb=config.get("REWRITE_HEADERS_MEM_MB", 2000),
+        cpus_per_task=config.get("REWRITE_HEADERS_THREADS", 5)
     shell:
         r"""
         mkdir -p $(dirname {output.r1}) &&
         mkdir -p $(dirname {log.path}) &&
-        {{
-            AWK_CMD='NR % 4 == 1 {{ sub(/\/[12]$/, ""); print $0 "_taxid=" tid "_genome=" gbase; next }} {{ print }}' ;
-            # R1 pipeline
-            (pigz -dc {input.r1} | awk -v tid={params.tax_id} -v gbase={params.genome_basename} "$AWK_CMD" | pigz -c > {output.r1}) &&
-            # R2 pipeline
-            (pigz -dc {input.r2} | awk -v tid={params.tax_id} -v gbase={params.genome_basename} "$AWK_CMD" | pigz -c > {output.r2}) ;
-        }} 2> {log.path}
+        AWK_CMD='NR % 4 == 1 {{ sub(/\/[12]$/, ""); print $0 "_taxid=" tid "_genome=" gbase; next }} {{ print }}' &&
+        pigz -p {params.pigz_threads} -dc {input.r1} \
+            | awk -v tid={params.tax_id} -v gbase={params.genome_basename} "$AWK_CMD" \
+            | pigz -p {params.pigz_threads} -c > {output.r1} 2> {log.path}
+        """
+
+# --- Rewrite FASTQ Headers to Embed Source Info (using awk) ---
+rule rewrite_fastq_r2_headers:
+    input:
+        # Input are the raw simulated reads from NEAT (that have appended "/1" or "/2" to the headers)
+        r2 = SIM_READS_R2_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    output:
+        # Output are cleaned FASTQ files
+        r2 = CLEANED_SIM_READS_R2_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    log:
+        path = LOG_REWRITE_R2_HEADERS_PATTERN.format(
+            tax_id="{tax_id}", genome_basename="{genome_basename}")
+    params:
+        tax_id = "{tax_id}",
+        genome_basename = "{genome_basename}",
+        pigz_threads = 2
+    conda:
+        ".." / ENVS_DIR / "extract_reads.yaml"
+    threads: config.get("REWRITE_HEADERS_THREADS", 5)
+    resources:
+        runtime=config.get("REWRITE_HEADERS_RUNTIME", "2h"),
+        mem_mb=config.get("REWRITE_HEADERS_MEM_MB", 2000),
+        cpus_per_task=config.get("REWRITE_HEADERS_THREADS", 5)
+    shell:
+        r"""
+        mkdir -p $(dirname {output.r2}) &&
+        mkdir -p $(dirname {log.path}) &&
+        AWK_CMD='NR % 4 == 1 {{ sub(/\/[12]$/, ""); print $0 "_taxid=" tid "_genome=" gbase; next }} {{ print }}' &&
+        pigz -p {params.pigz_threads} -dc {input.r2} \
+            | awk -v tid={params.tax_id} -v gbase={params.genome_basename} "$AWK_CMD" \
+            | pigz -p {params.pigz_threads} -c > {output.r2} 2> {log.path}
         """
 
 # --- Aggregate Rewritten Simulated FASTQs ---

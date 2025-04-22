@@ -61,7 +61,7 @@ BBMAP_INDEX_RUNTIME: "15m"
 BBMAP_MAP_MEM: "30g"
 BBMAP_MAP_MEM_MB: 32000
 BBMAP_MAP_THREADS: 16
-BBMAP_MAP_RUNTIME: "24h"
+BBMAP_MAP_RUNTIME: "12h"
 
 # Samtools Sort Resources
 SAMTOOLS_SORT_THREADS: 2
@@ -91,12 +91,14 @@ SAMTOOLS_STATS_THREADS: 1
 
 # pIRS Simulation Resources
 PIRS_SIM_MEM_MB: 2000
-PIRS_SIM_RUNTIME: "4h"
+PIRS_SIM_RUNTIME: "2h"
 PIRS_SIM_THREADS: 4
 
-# Rewrite FASTQ Headers Resources (Python script)
-REWRITE_HEADERS_THREADS: 1
-REWRITE_HEADERS_MEM_MB: 1000
+# Rewrite FASTQ Headers Resources 
+# Command structure: 
+# pigz -p 2 read.fq.gz | awk | pigz -p 2 > read_renamed.fq.gz
+REWRITE_HEADERS_THREADS: 5
+REWRITE_HEADERS_MEM_MB: 2000
 REWRITE_HEADERS_RUNTIME: "1h"
 
 # Concatenate FASTQ Resources (cat)
