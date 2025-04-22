@@ -31,7 +31,7 @@ BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION: 0  # 0: Run validation for all genomes (even if no reads are mapped)
 
 # --- pIRS specific settings --- #
-COVERAGE: 0.1  # Coverage for pIRS simulation
+COVERAGE: 10  # Coverage for pIRS simulation
 
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
@@ -62,7 +62,7 @@ BBMAP_INDEX_RUNTIME: "15m"
 BBMAP_MAP_MEM: "30g"
 BBMAP_MAP_MEM_MB: 32000
 BBMAP_MAP_THREADS: 16
-BBMAP_MAP_RUNTIME: "2h"
+BBMAP_MAP_RUNTIME: "6h"
 
 # Samtools Sort Resources
 SAMTOOLS_SORT_THREADS: 2
@@ -92,7 +92,7 @@ SAMTOOLS_STATS_THREADS: 1
 
 # pIRS Simulation Resources
 PIRS_SIM_MEM_MB: 2000
-PIRS_SIM_RUNTIME: "2h"
+PIRS_SIM_RUNTIME: "3h"
 PIRS_SIM_THREADS: 4
 
 # Rewrite FASTQ Headers Resources 
@@ -100,7 +100,7 @@ PIRS_SIM_THREADS: 4
 # pigz -p 2 read.fq.gz | awk | pigz -p 2 > read_renamed.fq.gz
 REWRITE_HEADERS_THREADS: 5
 REWRITE_HEADERS_MEM_MB: 2000
-REWRITE_HEADERS_RUNTIME: "1h"
+REWRITE_HEADERS_RUNTIME: "2h"
 
 # Concatenate FASTQ Resources (cat)
 AGGREGATE_FASTQ_THREADS: 2
@@ -110,7 +110,7 @@ AGGREGATE_FASTQ_RUNTIME: "1h"
 # Kraken 2 Resources
 KRAKEN2_THREADS: 72
 KRAKEN2_MEM_MB: 1600000
-KRAKEN2_RUNTIME: "3h"
+KRAKEN2_RUNTIME: "4h"
 
 # Split Kraken Output Resources (Python script)
 SPLIT_KRAKEN_THREADS: 1
@@ -140,7 +140,7 @@ K2MASK_RUNTIME: "1h"
 # Bedtools Subtract Resources (rule: define_classifiable_regions)
 BEDTOOLS_SUBTRACT_THREADS: 1
 BEDTOOLS_SUBTRACT_MEM_MB: 2000
-BEDTOOLS_SUBTRACT_RUNTIME: "15m"
+BEDTOOLS_SUBTRACT_RUNTIME: "30m"
 
 # Sort Classifiable BED file Resources
 SORT_BED_THREADS: 1

@@ -115,6 +115,7 @@ rule bbmap_map_reads:
         mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
         runtime=config.get("BBMAP_MAP_RUNTIME", "1h"),
         cpus_per_task=config.get("BBMAP_MAP_THREADS", 4)
+    retries: 3
     shell:
         "mkdir -p $(dirname {log.path}) && "
         "/usr/bin/time -v "
