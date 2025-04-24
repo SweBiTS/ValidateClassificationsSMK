@@ -40,7 +40,6 @@ LOG_CHK_AGGREGATE_COVERAGE = str(VALIDATION_LOG_DIR / "aggregate_coverage/aggreg
 LOG_ESTIMATE_PARAMS_PATTERN = str(VALIDATION_LOG_DIR / "estimate_sim_params/{tax_id}/{genome_basename}.log")
 LOG_SIMULATE_READS_PATTERN = str(VALIDATION_LOG_DIR / "simulate_reads/{tax_id}/{genome_basename}.log")
 LOG_REWRITE_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "rewrite_headers/{tax_id}/{genome_basename}_R{read_pair}.log")
-LOG_AGG_FASTQ_PAIR_PATTERN = str(VALIDATION_LOG_DIR / "aggregate_sim_fastqs/aggregate_sim_fastqs_R{read_pair}.log")
 LOG_KRAKEN2_BATCH_PATTERN = str(VALIDATION_LOG_DIR / "kraken2_sim/classify_all_simulated.log")
 LOG_SPLIT_KRAKEN_PATTERN = str(VALIDATION_LOG_DIR / "split_kraken/split_kraken_output.log")
 LOG_EXTRACT_IDS_PATTERN = str(VALIDATION_LOG_DIR / "extract_ids/{tax_id}/{genome_basename}.log")
@@ -160,11 +159,7 @@ checkpoint aggregate_coverage_results:
         path = LOG_CHK_AGGREGATE_COVERAGE
     conda:
         ".." / ENVS_DIR / "analysis.yaml"
-    threads: config.get("AGG_COVERAGE_THREADS", 1)
-    resources:
-        runtime=config.get("AGG_COVERAGE_RUNTIME", "10m"),
-        mem_mb=config.get("AGG_COVERAGE_MEM_MB", 1000),
-        cpus_per_task=config.get("AGG_COVERAGE_THREADS", 1)
+    benchmark: LOG_CHK_AGGREGATE_COVERAGE.replace("log", "benchmark")
     script:
         "../scripts/aggregate_and_filter_coverage.py"
 
@@ -186,6 +181,7 @@ rule estimate_simulation_params:
         mem_mb=config.get("SAMTOOLS_STATS_MEM_MB", 1000),
         runtime=config.get("SAMTOOLS_STATS_RUNTIME", "15m"),
         cpus_per_task=config.get("SAMTOOLS_STATS_THREADS", 1)
+    benchmark: LOG_ESTIMATE_PARAMS_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/run_samtools_stats_parse.py"
 
@@ -211,6 +207,7 @@ rule simulate_reads_pirs:
         mem_mb=config.get("PIRS_SIM_MEM_MB", 4000),
         cpus_per_task=config.get("PIRS_SIM_THREADS", 4)
     retries: 3
+    benchmark: LOG_SIMULATE_READS_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/run_pirs_simulate_reads.py"
 
@@ -235,8 +232,6 @@ rule rewrite_fastq_headers:
         cpus_per_task=config.get("REWRITE_HEADERS_THREADS", 5)
     shell:
         r"""
-        mkdir -p $(dirname {output.cleaned_fq}) && \
-        mkdir -p $(dirname {log.path}) && \
         AWK_CMD='NR % 4 == 1 {{ sub(/\/[12]$/, ""); print $0 "_taxid=" tid "_genome=" gbase; next }} {{ print }}' && \
         pigz -p {params.pigz_threads} -dc {input.raw_fq} \
             | awk -v tid={wildcards.tax_id} -v gbase={wildcards.genome_basename} "$AWK_CMD" \
@@ -251,21 +246,13 @@ rule aggregate_simulated_fastqs:
     output:
         # Output is a single aggreated FASTQ file
         agg_fq = AGG_SIM_PATTERN
-    log:
-        path = LOG_AGG_FASTQ_PAIR_PATTERN
     threads: config.get("AGGREGATE_FASTQ_THREADS", 2)
     resources:
         runtime=config.get("AGGREGATE_FASTQ_RUNTIME", "1h"),
         mem_mb=config.get("AGGREGATE_FASTQ_MEM_MB", 2000),
         cpus_per_task=config.get("AGGREGATE_FASTQ_THREADS", 2)
     shell:
-        r"""
-        mkdir -p $(dirname {output.agg_fq}) && \
-        mkdir -p $(dirname {log.path}) && \
-        echo "Concatenating simulated fastq (R{wildcards.read_pair}) files..." > {log.path} && \
-        cat {input.fq_files} > {output.agg_fq} 2>> {log.path} && \
-        echo "Concatenation complete." >> {log.path}
-        """
+        "cat {input.fq_files} > {output.agg_fq}"
 
 # --- Classify ALL Concatenated Simulated Reads --- #
 rule classify_all_concatenated:
@@ -294,10 +281,8 @@ rule classify_all_concatenated:
         runtime=config.get("KRAKEN2_RUNTIME", "6h"),
         mem_mb=config.get("KRAKEN2_MEM_MB", 500000),
         cpus_per_task=config.get("KRAKEN2_THREADS", 32)
+    benchmark: LOG_KRAKEN2_BATCH_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {output.kraken_out}) && "
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
         "{params.executable} "
             "--db {params.db_path} "
             "--threads {threads} "
@@ -333,6 +318,7 @@ rule split_kraken_output:
         runtime=config.get("SPLIT_KRAKEN_RUNTIME", "60m"),
         mem_mb=config.get("SPLIT_KRAKEN_MEM_MB", 2000),
         cpus_per_task=config.get("SPLIT_KRAKEN_THREADS", 1)
+    benchmark: LOG_SPLIT_KRAKEN_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/split_kraken.py"
 
@@ -358,10 +344,8 @@ rule extract_correct_read_ids:
         runtime=config.get("EXTRACT_IDS_RUNTIME", "60m"),
         mem_mb=config.get("EXTRACT_IDS_MEM_MB", 2000),
         cpus_per_task=config.get("EXTRACT_IDS_THREADS", 1)
+    benchmark: LOG_EXTRACT_IDS_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {output.read_ids}) && "
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
         "python {params.selmeout_path} "
             "--input {input.kraken_out} "
             "--output {output.read_ids} "
@@ -389,88 +373,42 @@ rule filter_fastq_with_seqtk:
         runtime=config.get("SEQTK_RUNTIME", "60m"),
         mem_mb=config.get("SEQTK_MEM_MB", 2000),
         cpus_per_task=config.get("SEQTK_THREADS", 1)
+    benchmark: LOG_FILTER_FASTQ_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {output.fastq}) && "
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
-            "seqtk subseq {input.fastq} <(cut -f 3 {input.read_ids}) | pigz -c > {output.fastq} "
-            "2> {log.path}"
+        "seqtk subseq {input.fastq} <(cut -f 3 {input.read_ids}) | pigz -c > {output.fastq} "
+        "2> {log.path}"
 
 # --- Map Correctly Classified Simulated Reads using BBMap --- #
-rule map_correct_simulated:
+# Run BBmap with the same settings as in the map.smk rule, but with different input/output patterns
+# and treating ambiguous reads differently - randomly assign them to one of the best positions
+use rule bbmap_map_reads as map_correct_simulated with:
     input:
         # Use the filtered FASTQ files from seqtk step
+        idx_dir = BBMAP_INDEX_DIR_PATTERN,
         r1 = FILTERED_SIM_READS_PATTERN.format(
             tax_id="{tax_id}", genome_basename="{genome_basename}", read_pair="1"),
         r2 = FILTERED_SIM_READS_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}", read_pair="2"),
-        idx_dir = BBMAP_INDEX_DIR_PATTERN
+            tax_id="{tax_id}", genome_basename="{genome_basename}", read_pair="2")
     output:
         # Output BAM and mapping stats
         bam = MAPPED_SIM_BAM_PATTERN,
         stats = MAPPED_SIM_STATS_PATTERN
     params:
-        build_id = 1, # Assuming build_id is always 1 for this workflow
-        mem = config.get("BBMAP_MAP_MEM", "20g"),
-        minid = config["BBMAP_MINID"],
-        pairedonly = config["BBMAP_PAIREDONLY"]
+        ambig = 'random'
     log:
         path = LOG_MAP_SIM_PATTERN
-    conda:
-        ".." / ENVS_DIR / "map.yaml"
-    threads: config.get("BBMAP_MAP_THREADS", 4)
-    resources:
-        runtime=config.get("BBMAP_MAP_RUNTIME", "1h"),
-        mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
-        cpus_per_task=config.get("BBMAP_MAP_THREADS", 4)
-    shell:
-        "mkdir -p $(dirname {output.bam}) && "
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
-        "bbmap.sh "
-            "in1={input.r1} "
-            "in2={input.r2} "
-            "path={input.idx_dir} "
-            "build={params.build_id} "
-            "out={output.bam} "
-            "statsfile={output.stats} "
-            "mappedonly=t "
-            "minid={params.minid} "
-            "ambiguous=random "
-            "pairedonly={params.pairedonly} "
-            "-Xmx{params.mem} "
-            "threads={threads} "
-            "pigz=t unpigz=t "
-            "overwrite=t "
-            f"{BBMAP_JNI_FLAG} "
-            "> {log.path} 2>&1"
+    benchmark: LOG_MAP_SIM_PATTERN.replace("log", "benchmark")
 
 # --- Sort Mapped Simulated Reads BAM file by coordinate --- #
-rule sort_mapped_simulated:
+# Reuse the samtools sort rule from map.smk, but with different input/output patterns
+use rule samtools_sort as sort_mapped_simulated with:
     input:
         bam = MAPPED_SIM_BAM_PATTERN
     output:
-        bam_sorted = SORTED_MAPPED_SIM_BAM_PATTERN
-    params:
-        mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G"),
+        bam = SORTED_MAPPED_SIM_BAM_PATTERN
     log:
         path = LOG_SORT_SIM_PATTERN
-    conda:
-        ".." / ENVS_DIR / "map.yaml"
-    threads: config.get("SAMTOOLS_SORT_THREADS", 2)
-    resources:
-        mem_mb=lambda wildcards, threads: int(threads) * int(config.get("SAMTOOLS_SORT_MEM_PER_THREAD_MB", 2048)),
-        runtime=config.get("SAMTOOLS_SORT_RUNTIME", "2h"),
-        cpus_per_task=config.get("SAMTOOLS_SORT_THREADS", 2)
-    shell:
-        "mkdir -p $(dirname {output.bam_sorted}) && "
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v samtools sort "
-            "-@ {threads} "
-            "-m {params.mem_per_thread} "
-            "-o {output.bam_sorted} "
-            "{input.bam} "
-            "2> {log.path}"
+    benchmark: LOG_SORT_SIM_PATTERN.replace("log", "benchmark")
 
 # --- Calculate Coverage from Mapped Simulated Reads --- #
 rule calculate_simulated_coverage:
@@ -491,10 +429,9 @@ rule calculate_simulated_coverage:
         runtime=config.get("CALC_SIM_COV_RUNTIME", "30m"),
         mem_mb=config.get("CALC_SIM_COV_MEM_MB", 2000),
         cpus_per_task=config.get("CALC_SIM_COV_THREADS", 1)
+    benchmark: LOG_CALC_SIM_COV_PATTERN.replace("log", "benchmark")
     shell:
         # Use bedtools genomecov -bga, coverage filter with awk, merge resulting bed-regions
-        "mkdir -p $(dirname {output.covered_bed}) && "
-        "mkdir -p $(dirname {log.path}) && "
         "bedtools genomecov -bga -ibam {input.bam} "
             "| awk -v threshold={params.threshold} '$4 >= threshold' "
             "| bedtools merge -i stdin "
@@ -525,6 +462,7 @@ rule find_masked_regions:
         runtime=config.get("K2MASK_RUNTIME", "1h"),
         mem_mb=config.get("K2MASK_MEM_MB", 2000),
         cpus_per_task=config.get("K2MASK_THREADS", 1)
+    benchmark: LOG_MASKED_REGIONS_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/fasta_to_masked_bed.py"
 
@@ -548,10 +486,9 @@ rule define_classifiable_regions:
         runtime=config.get("BEDTOOLS_SUBTRACT_RUNTIME", "15m"),
         mem_mb=config.get("BEDTOOLS_SUBTRACT_MEM_MB", 2000),
         cpus_per_task=config.get("BEDTOOLS_SUBTRACT_THREADS", 1)
+    benchmark: LOG_DEFINE_CLASSIFIABLE_PATTERN.replace("log", "benchmark")
     shell:
         # Subtract masked regions (-b) from covered regions (-a)
-        "mkdir -p $(dirname {output.classifiable_bed}) && "
-        "mkdir -p $(dirname {log.path}) && "
         "bedtools subtract -a {input.coverage_bed} -b {input.masked_bed} "
             "> {output.classifiable_bed} 2> {log.path}"
 
@@ -573,10 +510,9 @@ rule intersect_real_reads_with_classifiable_regions:
         runtime=config.get("INTERSECT_READS_RUNTIME", "30m"),
         mem_mb=config.get("INTERSECT_READS_MEM_MB", 2000),
         cpus_per_task=config.get("INTERSECT_READS_THREADS", 1)
+    benchmark: LOG_INTERSECT_READS_PATTERN.replace("log", "benchmark")
     shell:
         # Use bedtools intersect -u; output is BAM
-        "mkdir -p $(dirname {output.overlapping_bam}) && "
-        "mkdir -p $(dirname {log.path}) && "
         "bedtools intersect "
             "-a {input.dedup_bam} "             # Input BAM (real reads)
             "-b {input.classifiable_regions} "  # Classifiable regions BED
@@ -602,6 +538,7 @@ rule summarize_validation_coverage:
         runtime=config.get("SUMMARIZE_VALIDATION_RUNTIME", "20m"),
         mem_mb=config.get("SUMMARIZE_VALIDATION_MEM_MB", 2000),
         cpus_per_task=config.get("SUMMARIZE_VALIDATION_THREADS", 1)
+    benchmark: LOG_SUMMARIZE_VALIDATION_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/summarize_validation.py"
 
@@ -620,6 +557,7 @@ rule plot_validation_scatter:
         runtime=config.get("PLOT_RUNTIME", "15m"),
         mem_mb=config.get("PLOT_MEM_MB", 1000),
         cpus_per_task=config.get("PLOT_THREADS", 1)
+    benchmark: LOG_PLOT_SCATTER_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/plot_scatter_plotly.py"
 

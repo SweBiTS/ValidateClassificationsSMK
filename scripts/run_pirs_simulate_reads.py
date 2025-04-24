@@ -89,7 +89,6 @@ expected_pirs_output_r2 = Path(f'{output_prefix}_{avg_read_len}_{mean_ins}_2.fq.
 # Will produce output fastq-files that are formatted like so:
 # {output_prefix}_{read_len}_{insert_size}_1.fq.gz
 cmd_pirs = [
-    "/usr/bin/time", "-v",
     "pirs",
     "simulate",
     "--read-len", str(avg_read_len),

@@ -10,9 +10,10 @@ input/fastq/*
 !input/fastq/
 !input/fastq/.gitkeep
 
-# Ignore output and log directories
+# Ignore output, log, and benchmark directories
 output/
 logs/
+benchmarks/
 
 # Ignore anything user-related in the supporting_files folder...
 supporting_files/*

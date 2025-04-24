@@ -64,7 +64,6 @@ rule bbmap_index:
         fasta = get_actual_fasta_path
     output:
         idx_dir = directory(BBMAP_INDEX_DIR_PATTERN)
-        # idx_dir = directory(BBMAP_INDEX_DIR / "{genome_basename}")
     params:
         build_id = 1,
         mem = config.get("BBMAP_INDEX_MEM", "20g")
@@ -77,9 +76,8 @@ rule bbmap_index:
         mem_mb=config.get("BBMAP_INDEX_MEM_MB", 22000),
         runtime=config.get("BBMAP_INDEX_RUNTIME", "1h"),
         cpus_per_task=config.get("BBMAP_INDEX_THREADS", 4)
+    benchmark: LOG_BBMAP_INDEX_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
         "bbmap.sh "
             "ref={input.fasta} "
             "path={output.idx_dir} "
@@ -101,24 +99,23 @@ rule bbmap_map_reads:
         bam = RAW_BAM_OUT_PATTERN,
         stats = STATS_OUT_PATTERN
     params:
-        build_id = 1,
-        mem = config.get("BBMAP_MAP_MEM", "6g"),
+        mem = config.get("BBMAP_MAP_MEM", "8g"),
         minid = config["BBMAP_MINID"],
-        ambig = config["BBMAP_AMBIGUOUS"],
-        pairedonly = config["BBMAP_PAIREDONLY"]
+        pairedonly = 't',
+        ambig = 'toss',
+        build_id = 1
     log:
         path = LOG_MAP_PATTERN
     conda:
         ".." / ENVS_DIR / "map.yaml"
     threads: config.get("BBMAP_MAP_THREADS", 4)
     resources:
-        mem_mb=config.get("BBMAP_MAP_MEM_MB", 8000),
+        mem_mb=config.get("BBMAP_MAP_MEM_MB", 10000),
         runtime=config.get("BBMAP_MAP_RUNTIME", "1h"),
         cpus_per_task=config.get("BBMAP_MAP_THREADS", 4)
     retries: 3
+    benchmark: LOG_MAP_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
         "bbmap.sh "
             "in1={input.r1} "
             "in2={input.r2} "
@@ -144,7 +141,6 @@ rule samtools_sort:
     output:
         bam = SORTED_BAM_OUT_PATTERN
     params:
-        # Memory per thread for sorting
         mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G")
     log:
         path = LOG_SORT_PATTERN
@@ -155,9 +151,8 @@ rule samtools_sort:
         mem_mb=lambda wildcards, threads: int(threads) * int(config.get("SAMTOOLS_SORT_MEM_PER_THREAD_MB", 2048)),
         runtime=config.get("SAMTOOLS_SORT_RUNTIME", "2h"),
         cpus_per_task=config.get("SAMTOOLS_SORT_THREADS", 2)
+    benchmark: LOG_SORT_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {log.path}) && "
-        "/usr/bin/time -v "
         "samtools sort "
             "-@ {threads} "                 # Number of sorting threads
             "-m {params.mem_per_thread} "   # Memory per thread
@@ -186,16 +181,14 @@ rule mark_duplicates_sambamba:
         mem_mb=config.get("SAMBAMBA_MARKDUP_MEM_MB", 8000),
         runtime=config.get("SAMBAMBA_MARKDUP_RUNTIME", "2h"),
         cpus_per_task=config.get("SAMBAMBA_MARKDUP_THREADS", 4)
+    benchmark: LOG_MARKDUP_PATTERN.replace("log", "benchmark")
     shell:
-        "mkdir -p $(dirname {log.path}) && "
-        "mkdir -p {params.tmpdir} && "
-        "/usr/bin/time -v "
         "sambamba markdup -t {threads} "
-        "--tmpdir={params.tmpdir} "
-        "--remove-duplicates "
-        "{input.sorted_bam} "
-        "{output.dedup_bam} "
-        "> {log.path} 2>&1 && "
+            "--tmpdir={params.tmpdir} "
+            "--remove-duplicates "
+            "{input.sorted_bam} "
+            "{output.dedup_bam} "
+            "> {log.path} 2>&1 && "
         "rm -rf {params.tmpdir} "
 
 # --- Calculate Real Read Coverage using Samtools --- #
@@ -215,15 +208,12 @@ rule calculate_coverage:
         runtime=config.get("CALC_REAL_COV_RUNTIME", "60m"),
         mem_mb=config.get("CALC_REAL_COV_MEM_MB", 1000),
         cpus_per_task=config.get("CALC_REAL_COV_THREADS", 1)
+    benchmark: LOG_CALC_COV_PATTERN.replace("log", "benchmark")
     shell:
         # Use a samtools/awk pipe to calculate coverage
         r"""
-        mkdir -p $(dirname {output.cov_file}) &&
-        mkdir -p $(dirname {log.path}) &&
-        {{
-            coverage=$(samtools depth -a {input.bam} | awk '{{sum+=$3; count++}} END {{if (count > 0) print sum/count; else print 0}}') &&
-            echo -e {wildcards.tax_id}\\t{wildcards.genome_basename}\\t${{coverage}} > {output.cov_file} ;
-        }} 2> {log.path}
+        coverage=$(samtools depth -a {input.bam} | awk '{{sum+=$3; count++}} END {{if (count > 0) print sum/count; else print 0}}') 2> {log.path}
+        echo -e {wildcards.tax_id}\\t{wildcards.genome_basename}\\t${{coverage}} > {output.cov_file} 2>> {log.path}
         """
 
 # --- Collect Coverage Results --- #

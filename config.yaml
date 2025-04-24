@@ -24,20 +24,18 @@ MAPPING_SPECIFICATION: "supporting_files/mapping_specification.yaml"    # File m
 
 # --- BBMap specific settings --- #
 BBMAP_MINID: 0.97               # Minimum identity for mapping
-BBMAP_AMBIGUOUS: "toss"         # How to handle ambiguous mappings {best, toss, random, all}
-BBMAP_PAIREDONLY: "t"           # Treat unpaired reads as unmapped {t, f}
 
 # Minumum mean depth of coverage of a genome to run the validation pipeline
 MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION: 0  # 0: Run validation for all genomes (even if no reads are mapped)
 
 # --- pIRS specific settings --- #
-COVERAGE: 10  # Coverage for pIRS simulation
+COVERAGE: 0.1  # Coverage for pIRS simulation
 
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
 # a taxonomy directory with names.dmp and nodes.dmp
 #KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
-KRAKEN2_DB_PATH: "kraken_db/test_db"
+KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
 # Confidence threshold for Kraken 2 classification
 KRAKEN2_CONFIDENCE: 0.1
 # Minimum number of minimizer hit groups required for classification
@@ -62,13 +60,13 @@ BBMAP_INDEX_RUNTIME: "15m"
 BBMAP_MAP_MEM: "30g"
 BBMAP_MAP_MEM_MB: 32000
 BBMAP_MAP_THREADS: 16
-BBMAP_MAP_RUNTIME: "6h"
+BBMAP_MAP_RUNTIME: "24h"
 
 # Samtools Sort Resources
 SAMTOOLS_SORT_THREADS: 2
-SAMTOOLS_SORT_MEM_PER_THREAD: "10G"
-SAMTOOLS_SORT_MEM_PER_THREAD_MB: 10240 # Keep for SLURM calculation
-SAMTOOLS_SORT_RUNTIME: "2h"
+SAMTOOLS_SORT_MEM_PER_THREAD: "20G"
+SAMTOOLS_SORT_MEM_PER_THREAD_MB: 20480 # Keep for SLURM calculation
+SAMTOOLS_SORT_RUNTIME: "6h"
 
 # Sambamba Markdup Resources
 SAMBAMBA_MARKDUP_THREADS: 8
@@ -115,7 +113,7 @@ KRAKEN2_RUNTIME: "4h"
 # Split Kraken Output Resources (Python script)
 SPLIT_KRAKEN_THREADS: 1
 SPLIT_KRAKEN_MEM_MB: 2000
-SPLIT_KRAKEN_RUNTIME: "1h"
+SPLIT_KRAKEN_RUNTIME: "2h"
 
 # selmeout.py (Extract IDs) Resources
 EXTRACT_IDS_THREADS: 1
@@ -124,8 +122,8 @@ EXTRACT_IDS_RUNTIME: "1h"
 
 # seqtk subseq (Filtering FASTQ) Resources
 SEQTK_THREADS: 1
-SEQTK_MEM_MB: 2000
-SEQTK_RUNTIME: "1h"
+SEQTK_MEM_MB: 20000
+SEQTK_RUNTIME: "2h"
 
 # Bedtools GenomeCov/Merge Resources (calculate_simulated_coverage)
 CALC_SIM_COV_THREADS: 1
