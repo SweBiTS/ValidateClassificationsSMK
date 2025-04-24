@@ -16,6 +16,6 @@ default-resources:
   cpus_per_task: 8
 
 # -- Rule-Specific Resources (Overrides defaults) --
-set-resources:
-  classify_all_concatenated:
-    constraint: "largemem"
+# set-resources:
+#   classify_all_concatenated:
+#     constraint: "largemem"

@@ -6,53 +6,49 @@ import json
 # --- FILE PATH PATTERNS --- #
 # ========================== #
 
-# TODO: update r1 and r2 patterns to also take {direction} wildcard and leverage that in the rules. That is, make generalized 
-# rules for rewriting fastq headers and filtering fastqs after classification.
-
 # --- output patterns --- #
 VALIDATION_OUT_DIR = OUTPUT_DIR / "validation"
 CHK_AGGREGATE_COVERAGE_OUT = str(VALIDATION_OUT_DIR / "aggregated_coverage.tsv")
-SAMTOOLS_STATS_OUT_PATTERN = str(VALIDATION_OUT_DIR / "stats/{tax_id}/{genome_basename}/samtools_stats.txt")
-SIM_PARAMS_OUT_PATTERN = str(VALIDATION_OUT_DIR / "params/{tax_id}/{genome_basename}/sim_params.json")
-SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/pirs_{read_pair}.fq.gz")
-CLEANED_SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/{tax_id}/{genome_basename}/sim_clean_R{read_pair}.fq.gz")
-AGG_SIM_PATTERN = str(VALIDATION_OUT_DIR / "simulated_reads/aggregated/all_sim_clean_R{read_pair}.fq.gz")
-ALL_KRAKEN_OUT_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/aggregated/all_sim.kraken.out")
-ALL_KRAKEN_REPORT_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/aggregated/all_sim.kraken.report")
-KRAKEN_OUT_SIM_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.out")
-KRAKEN_REPORT_SIM_PATTERN = str(VALIDATION_OUT_DIR / "kraken2_sim/{tax_id}/{genome_basename}/sim.kraken.report")
-CORRECT_READ_IDS_PATTERN = str(VALIDATION_OUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_read_ids.txt")
-FILTERED_SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "filtered_reads/{tax_id}/{genome_basename}/sim_correct_R{read_pair}.fq.gz")
-MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.bam")
-MAPPED_SIM_STATS_PATTERN = str(VALIDATION_OUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim_stats.txt")
-SORTED_MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "mapped_sim/{tax_id}/{genome_basename}/mapped_correct_sim.sorted.bam")
-MASKED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "masked_regions/{genome_basename}.masked.bed")
-MASKED_FASTA_PATTERN = str(VALIDATION_OUT_DIR / "masked_regions/{genome_basename}.masked_lowercase.fasta")
-COVERED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "coverage_sim/{tax_id}/{genome_basename}/covered_regions.bed")
-CLASSIFIABLE_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "classifiable_regions/{tax_id}/{genome_basename}/classifiable_regions.bed")
-OVERLAPPING_READS_BAM_PATTERN = str(VALIDATION_OUT_DIR / "final_analysis/{tax_id}/{genome_basename}/overlapping_reads.bam")
-PER_SAMPLE_SUMMARY_PATTERN = str(VALIDATION_OUT_DIR / "summary_reports/{tax_id}/{genome_basename}/summary.tsv")
-PLOT_SCATTER_HTML_PATTERN  = str(VALIDATION_OUT_DIR / "plots/{tax_id}/{genome_basename}/scatter_reads_vs_length.html")
+SAMTOOLS_STATS_OUT_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__samtools_stats.txt")
+SIM_PARAMS_OUT_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulation_params.json")
+SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulated_{read_pair}.fq.gz")  # Must end in "_{read_pair}.fq.gz"
+CLEANED_SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulated_headerfixed_R{read_pair}.fq.gz")
+AGG_SIM_PATTERN = str(VALIDATION_OUT_DIR / "aggregated_simulated_R{read_pair}.fq.gz")
+ALL_KRAKEN_OUT_PATTERN = str(VALIDATION_OUT_DIR / "aggregated_simulated.kraken.out")
+ALL_KRAKEN_REPORT_PATTERN = str(VALIDATION_OUT_DIR / "aggregated_simulated.kraken.report")
+KRAKEN_OUT_SIM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulated.kraken.out")           # NB: Changing this will affect the split_kraken_output rule
+KRAKEN_REPORT_SIM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulated.kraken.report")     # NB: Changing this will affect the split_kraken_output rule
+CORRECT_READ_IDS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulated_correctly_classified_read_ids.txt")
+FILTERED_SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__simulated_correctly_classified_R{read_pair}.fq.gz")
+MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__mapped_simulated_correctly_classified.bam")
+MAPPED_SIM_STATS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__mapped_simulated_correctly_classified_stats.txt")
+SORTED_MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__mapped_simulated_correctly_classified.sorted.bam")
+MASKED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{genome_basename}.masked.bed")
+MASKED_FASTA_PATTERN = str(VALIDATION_OUT_DIR / "{genome_basename}.lowercase_masked.fasta")
+COVERED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__covered_regions_simulated.bed")
+CLASSIFIABLE_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__classifiable_regions.bed")
+OVERLAPPING_READS_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__real_reads_in_classifiable_regions.bam")
+PER_SAMPLE_SUMMARY_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__summary.tsv")
+PLOT_SCATTER_HTML_PATTERN  = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__scatterplot_reads_vs_classifiable_length.html")
 
 # --- log patterns --- #
 VALIDATION_LOG_DIR = LOG_DIR / "validation"
-LOG_CHK_AGGREGATE_COVERAGE = str(VALIDATION_LOG_DIR / "aggregate_coverage/aggregate_coverage.log")
-LOG_ESTIMATE_PARAMS_PATTERN = str(VALIDATION_LOG_DIR / "estimate_sim_params/{tax_id}/{genome_basename}.log")
-LOG_SIMULATE_READS_PATTERN = str(VALIDATION_LOG_DIR / "simulate_reads/{tax_id}/{genome_basename}.log")
-LOG_REWRITE_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "rewrite_headers/{tax_id}/{genome_basename}_R{read_pair}.log")
-LOG_KRAKEN2_BATCH_PATTERN = str(VALIDATION_LOG_DIR / "kraken2_sim/classify_all_simulated.log")
-LOG_SPLIT_KRAKEN_PATTERN = str(VALIDATION_LOG_DIR / "split_kraken/split_kraken_output.log")
-LOG_EXTRACT_IDS_PATTERN = str(VALIDATION_LOG_DIR / "extract_ids/{tax_id}/{genome_basename}.log")
-LOG_FILTER_FASTQ_PATTERN = str(VALIDATION_LOG_DIR / "filter_fastq/{tax_id}/{genome_basename}_R{read_pair}.log")
-LOG_MAP_SIM_PATTERN = str(VALIDATION_LOG_DIR / "map_simulated/{tax_id}/{genome_basename}.log")
-LOG_SORT_SIM_PATTERN = str(VALIDATION_LOG_DIR / "sort_simulated/{tax_id}/{genome_basename}.log")
-LOG_CALC_SIM_COV_PATTERN = str(VALIDATION_LOG_DIR / "calculate_sim_coverage/{tax_id}/{genome_basename}.log")
-LOG_MASKED_REGIONS_PATTERN = str(VALIDATION_LOG_DIR / "find_masked_regions/{genome_basename}.log")
-LOG_DEFINE_CLASSIFIABLE_PATTERN = str(VALIDATION_LOG_DIR / "define_classifiable_regions/{tax_id}/{genome_basename}.log")
-LOG_INTERSECT_READS_PATTERN = str(VALIDATION_LOG_DIR / "intersect_reads/{tax_id}/{genome_basename}.log")
-LOG_SUMMARIZE_VALIDATION_PATTERN = str(VALIDATION_LOG_DIR / "summarize_validation/{tax_id}/{genome_basename}.log")
-LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "plot_scatter/{tax_id}/{genome_basename}.log")
-
+LOG_CHK_AGGREGATE_COVERAGE = str(VALIDATION_LOG_DIR / "aggregate_coverage.log")
+LOG_ESTIMATE_PARAMS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__estimate_simulation_params.log")
+LOG_SIMULATE_READS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__simulate_reads_pirs.log")
+LOG_REWRITE_HEADERS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}_R{read_pair}__rewrite_fastq_headers.log")
+LOG_KRAKEN2_BATCH_PATTERN = str(VALIDATION_LOG_DIR / "classify_all_simulated.log")
+LOG_SPLIT_KRAKEN_PATTERN = str(VALIDATION_LOG_DIR / "split_kraken_output.log")
+LOG_EXTRACT_IDS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__extract_correct_read_ids.log")
+LOG_FILTER_FASTQ_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}_R{read_pair}__filter_fastq_with_seqtk.log")
+LOG_MAP_SIM_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__map_correct_simulated.log")
+LOG_SORT_SIM_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__sort_mapped_simulated.log")
+LOG_CALC_SIM_COV_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__calculate_simulated_coverage.log")
+LOG_MASKED_REGIONS_PATTERN = str(VALIDATION_LOG_DIR / "{genome_basename}__find_masked_regions.log")
+LOG_DEFINE_CLASSIFIABLE_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__define_classifiable_regions.log")
+LOG_INTERSECT_READS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__intersect_real_reads_with_classifiable_regions.log")
+LOG_SUMMARIZE_VALIDATION_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__summarize_validation_coverage.log")
+LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__plot_validation_scatter.log")
 
 # ==================== #
 # --- HELPER FUNCS --- #
@@ -308,7 +304,11 @@ rule split_kraken_output:
         # Regex to extract info embedded in read ID by rewrite_fastq_headers rule
         # Assumes header format like @BaseID_taxid=XXX_genome=YYY
         # Capture group 1: TaxID digits, Capture group 2: GenomeBaseName chars
-        header_regex = r"_taxid=(\d+)_genome=([a-zA-Z0-9_.\-]+)"
+        header_regex = r"_taxid=(\d+)_genome=([a-zA-Z0-9_.\-]+)",
+
+        # Regex to extract wildcards from expected output paths
+        # Assumes pattern ".../{tax_id}_{genome_basename}__simulated.kraken.out"
+        output_filename_regex = r".*/(\d+)_([a-zA-Z0-9_.\-]+)__simulated\.kraken\.out$"
     log:
         path = LOG_SPLIT_KRAKEN_PATTERN
     conda:

@@ -22,8 +22,7 @@ ref_fasta = snk_input.ref_fasta
 params_json = snk_input.params_json
 final_output_r1 = Path(snk_output.r1)
 final_output_r2 = Path(snk_output.r2)
-output_dir = Path(final_output_r1).parent
-output_prefix = output_dir / "pirs"
+output_prefix = snk_output.r1.removesuffix('_1.fq.gz')  # "output/validation/9852_GCA__000516346.1_genomic__simulated_1.fq.gz" --> "output/validation/9852_GCA__000516346.1_genomic__simulated"
 log_file = snk_log.path
 
 # --- Get Config Parameters ---
@@ -73,7 +72,7 @@ try:
     mean_ins = int(round(mean_ins))
     stdev_ins = int(round(stdev_ins))
     avg_read_len = int(round(avg_read_len))
-    logging.info(f"Found Data Params: ReadLen={avg_read_len}, InsertSize={mean_ins},{stdev_ins}")
+    logging.info(f"Using Simulation Parameters: ReadLen={avg_read_len}, InsertSize={mean_ins},{stdev_ins}")
 
 except Exception as e:
     logging.error(f"Error reading or processing parameters from {params_json}: {e}", exc_info=True)

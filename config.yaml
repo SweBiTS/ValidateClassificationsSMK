@@ -34,8 +34,8 @@ COVERAGE: 0.1  # Coverage for pIRS simulation
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
 # a taxonomy directory with names.dmp and nodes.dmp
-#KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
-KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
+KRAKEN2_DB_PATH: "kraken_db/test_db"
+# KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
 # Confidence threshold for Kraken 2 classification
 KRAKEN2_CONFIDENCE: 0.1
 # Minimum number of minimizer hit groups required for classification
@@ -78,11 +78,6 @@ CALC_REAL_COV_THREADS: 1
 CALC_REAL_COV_MEM_MB: 1000
 CALC_REAL_COV_RUNTIME: "1h"
 
-# Aggregate Coverage Checkpoint Resources
-AGG_COVERAGE_THREADS: 1
-AGG_COVERAGE_MEM_MB: 1000
-AGG_COVERAGE_RUNTIME: "10m"
-
 # Samtools Stats Resources
 SAMTOOLS_STATS_MEM_MB: 1000
 SAMTOOLS_STATS_RUNTIME: "1h"
@@ -106,8 +101,11 @@ AGGREGATE_FASTQ_MEM_MB: 2000
 AGGREGATE_FASTQ_RUNTIME: "1h"
 
 # Kraken 2 Resources
-KRAKEN2_THREADS: 72
-KRAKEN2_MEM_MB: 1600000
+# KRAKEN2_THREADS: 72
+# KRAKEN2_MEM_MB: 1600000
+# KRAKEN2_RUNTIME: "4h"
+KRAKEN2_THREADS: 8
+KRAKEN2_MEM_MB: 10000
 KRAKEN2_RUNTIME: "4h"
 
 # Split Kraken Output Resources (Python script)

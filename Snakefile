@@ -129,9 +129,12 @@ def get_workflow_target():
 # --- WORKFLOWS AND TARGET FILES --- #
 # ================================== #
 
+wildcard_constraints:
+    tax_id="[0-9]+"
+
 # --- Final Targets --- #
-MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "mapping.done")
-VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "validation.done")
+MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "1_mapping.done")
+VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "2_validation.done")
 
 # --- Load the mapping specification --- #
 MAPPING_SPEC_DATA = load_mapping_spec(MAPPING_SPEC)

@@ -18,6 +18,7 @@ combined_kraken_file = snk_input.combined_kraken_out
 expected_output_files = snk_output
 log_file = snk_log.path
 header_regex_pattern = snk_params.header_regex
+filename_regex_pattern = snk_params.output_filename_regex
 
 # --- Setup Logging ---
 Path(log_file).parent.mkdir(parents=True, exist_ok=True)
@@ -29,6 +30,7 @@ logging.info(f"Combined Kraken Input: {combined_kraken_file}")
 logging.info(f"Number of Expected Output Files: {len(expected_output_files)}")
 logging.info(f"Log File: {log_file}")
 logging.info(f"Header Regex: {header_regex_pattern}")
+logging.info(f"Output Filename Regex: {filename_regex_pattern}")
 logging.info("----------------------------")
 
 # --- Pre-compile regex and prepare output file mapping ---
@@ -43,7 +45,7 @@ try:
 
     # Regex to extract wildcards from expected output paths
     # Assumes pattern ".../{tax_id}/{genome_basename}/sim.kraken.out"
-    out_pattern_regex = re.compile(r".*/(\d+)/([a-zA-Z0-9_.\-]+)/sim\.kraken\.out$")
+    out_pattern_regex = re.compile(filename_regex_pattern)
 
     for outfile_path_str in expected_output_files:
         outfile_path = Path(outfile_path_str)
