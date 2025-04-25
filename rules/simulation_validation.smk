@@ -401,7 +401,7 @@ use rule bbmap_map_reads as map_correct_simulated with:
 
 # --- Sort Mapped Simulated Reads BAM file by coordinate --- #
 # Reuse the samtools sort rule from map.smk, but with different input/output patterns
-use rule samtools_sort as sort_mapped_simulated with:
+use rule sambamba_sort as sort_mapped_simulated with:
     input:
         bam = MAPPED_SIM_BAM_PATTERN
     output:

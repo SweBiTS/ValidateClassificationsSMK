@@ -20,7 +20,7 @@ COVERAGE_OUTPUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/cove
 MAPPING_LOG_DIR = LOG_DIR / "mapping"
 LOG_BBMAP_INDEX_PATTERN = str(MAPPING_LOG_DIR / "{genome_basename}__bbmap_index.log")
 LOG_MAP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__bbmap_map.log")
-LOG_SORT_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__samtools_sort.log")
+LOG_SORT_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__sambamba_sort.log")
 LOG_MARKDUP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__sambamba_markdup.log")
 LOG_CALC_COV_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__coverage.log")
 
@@ -134,35 +134,35 @@ rule bbmap_map_reads:
             f"{BBMAP_JNI_FLAG} "  # Adds 'usejni=t' or 'usejni=f'
         "> {log.path} 2>&1"
 
-# --- Sort BAM file using Samtools --- #
-rule samtools_sort:
+# --- Sort BAM file using Sambamba --- #
+rule sambamba_sort:
     input:
         bam = RAW_BAM_OUT_PATTERN
     output:
         bam = SORTED_BAM_OUT_PATTERN
-    params:
-        mem_per_thread = config.get("SAMTOOLS_SORT_MEM_PER_THREAD", "2G")
     log:
         path = LOG_SORT_PATTERN
     conda:
         ".." / ENVS_DIR / "map.yaml"
-    threads: config.get("SAMTOOLS_SORT_THREADS", 2)
+    params:
+        mem_limit_gb = config.get("SAMBAMBA_SORT_MEM_LIMIT_GB", "30G")
+    threads: config.get("SAMBAMBA_SORT_THREADS", 4)
     resources:
-        mem_mb=lambda wildcards, threads: int(threads) * int(config.get("SAMTOOLS_SORT_MEM_PER_THREAD_MB", 2048)),
-        runtime=config.get("SAMTOOLS_SORT_RUNTIME", "2h"),
-        cpus_per_task=config.get("SAMTOOLS_SORT_THREADS", 2)
+        mem_mb=config.get("SAMBAMBA_SORT_MEM_MB", 32000),
+        runtime=config.get("SAMBAMBA_SORT_RUNTIME", "2h"),
+        cpus_per_task=config.get("SAMBAMBA_SORT_THREADS", 4)
     benchmark: LOG_SORT_PATTERN.replace("log", "benchmark")
     shell:
-        "samtools sort "
-            "-@ {threads} "                 # Number of sorting threads
-            "-m {params.mem_per_thread} "   # Memory per thread
-            "-o {output.bam} "              # Output file
-            "{input.bam} 2> {log.path} "    # Input file
+        "sambamba sort "
+            "-t {threads} "
+            "-m {params.mem_limit_gb} "
+            "-o {output.bam} "
+            "{input.bam} 2> {log.path} "
 
 # --- Mark/Remove Duplicates using Sambamba --- #
 rule mark_duplicates_sambamba:
     input:
-        # Input is the coordinate-sorted BAM from samtools_sort
+        # Input is the coordinate-sorted BAM from sambamba_sort
         sorted_bam = SORTED_BAM_OUT_PATTERN
     output:
         # Output is the BAM file with duplicates removed

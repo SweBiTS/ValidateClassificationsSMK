@@ -29,13 +29,13 @@ BBMAP_MINID: 0.97               # Minimum identity for mapping
 MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION: 0  # 0: Run validation for all genomes (even if no reads are mapped)
 
 # --- pIRS specific settings --- #
-COVERAGE: 0.1  # Coverage for pIRS simulation
+COVERAGE: 10  # Coverage for pIRS simulation
 
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
 # a taxonomy directory with names.dmp and nodes.dmp
-KRAKEN2_DB_PATH: "kraken_db/test_db"
-# KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
+# KRAKEN2_DB_PATH: "kraken_db/test_db"
+KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
 # Confidence threshold for Kraken 2 classification
 KRAKEN2_CONFIDENCE: 0.1
 # Minimum number of minimizer hit groups required for classification
@@ -51,24 +51,28 @@ KRAKEN2_MINIMUM_NUM_HIT_GROUPS: 10
 # These are used directly by the rules (and passed to SLURM)
 
 # BBMap Index Resources
+# Dynamic?
 BBMAP_INDEX_MEM: "30g"  # Referenced by bbmap_index rule in map.smk
 BBMAP_INDEX_MEM_MB: 32000
 BBMAP_INDEX_THREADS: 4
 BBMAP_INDEX_RUNTIME: "15m"
 
 # BBMap Map Reads Resources
+# Dynamic
 BBMAP_MAP_MEM: "30g"
 BBMAP_MAP_MEM_MB: 32000
 BBMAP_MAP_THREADS: 16
 BBMAP_MAP_RUNTIME: "24h"
 
-# Samtools Sort Resources
-SAMTOOLS_SORT_THREADS: 2
-SAMTOOLS_SORT_MEM_PER_THREAD: "20G"
-SAMTOOLS_SORT_MEM_PER_THREAD_MB: 20480 # Keep for SLURM calculation
-SAMTOOLS_SORT_RUNTIME: "6h"
+# Sambamba Sort Resources
+# Dynamic
+SAMBAMBA_SORT_THREADS: 8
+SAMBAMBA_SORT_MEM_LIMIT_GB: "30G"
+SAMBAMBA_SORT_MEM_MB: 32000
+SAMBAMBA_SORT_RUNTIME: "2h"
 
 # Sambamba Markdup Resources
+# Dynamic
 SAMBAMBA_MARKDUP_THREADS: 8
 SAMBAMBA_MARKDUP_MEM_MB: 12000
 SAMBAMBA_MARKDUP_RUNTIME: "2h"
@@ -101,12 +105,9 @@ AGGREGATE_FASTQ_MEM_MB: 2000
 AGGREGATE_FASTQ_RUNTIME: "1h"
 
 # Kraken 2 Resources
-# KRAKEN2_THREADS: 72
-# KRAKEN2_MEM_MB: 1600000
-# KRAKEN2_RUNTIME: "4h"
-KRAKEN2_THREADS: 8
-KRAKEN2_MEM_MB: 10000
-KRAKEN2_RUNTIME: "4h"
+KRAKEN2_THREADS: 72
+KRAKEN2_MEM_MB: 1600000
+KRAKEN2_RUNTIME: "6h"
 
 # Split Kraken Output Resources (Python script)
 SPLIT_KRAKEN_THREADS: 1
@@ -119,13 +120,15 @@ EXTRACT_IDS_MEM_MB: 3000
 EXTRACT_IDS_RUNTIME: "1h"
 
 # seqtk subseq (Filtering FASTQ) Resources
+# Dynamic
 SEQTK_THREADS: 1
-SEQTK_MEM_MB: 20000
+SEQTK_MEM_MB: 30000
 SEQTK_RUNTIME: "2h"
 
 # Bedtools GenomeCov/Merge Resources (calculate_simulated_coverage)
+# Dynamic
 CALC_SIM_COV_THREADS: 1
-CALC_SIM_COV_MEM_MB: 2000
+CALC_SIM_COV_MEM_MB: 6000
 CALC_SIM_COV_RUNTIME: "30m"
 
 # Resources for k2mask (rule: find_masked_regions)
