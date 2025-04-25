@@ -23,9 +23,6 @@ FILTERED_SIM_READS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename
 MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__mapped_simulated_correctly_classified.bam")
 MAPPED_SIM_STATS_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__mapped_simulated_correctly_classified_stats.txt")
 SORTED_MAPPED_SIM_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__mapped_simulated_correctly_classified.sorted.bam")
-MASKED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{genome_basename}.masked.bed")
-MASKED_FASTA_PATTERN = str(VALIDATION_OUT_DIR / "{genome_basename}.lowercase_masked.fasta")
-COVERED_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__covered_regions_simulated.bed")
 CLASSIFIABLE_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__classifiable_regions.bed")
 OVERLAPPING_READS_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__real_reads_in_classifiable_regions.bam")
 PER_SAMPLE_SUMMARY_PATTERN = str(VALIDATION_OUT_DIR / "{tax_id}_{genome_basename}__summary.tsv")
@@ -43,9 +40,7 @@ LOG_EXTRACT_IDS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__
 LOG_FILTER_FASTQ_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}_R{read_pair}__filter_fastq_with_seqtk.log")
 LOG_MAP_SIM_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__map_correct_simulated.log")
 LOG_SORT_SIM_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__sort_mapped_simulated.log")
-LOG_CALC_SIM_COV_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__calculate_simulated_coverage.log")
-LOG_MASKED_REGIONS_PATTERN = str(VALIDATION_LOG_DIR / "{genome_basename}__find_masked_regions.log")
-LOG_DEFINE_CLASSIFIABLE_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__define_classifiable_regions.log")
+LOG_DEF_CR_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__define_classifiable_regions.log")
 LOG_INTERSECT_READS_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__intersect_real_reads_with_classifiable_regions.log")
 LOG_SUMMARIZE_VALIDATION_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__summarize_validation_coverage.log")
 LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "{tax_id}_{genome_basename}__plot_validation_scatter.log")
@@ -410,26 +405,26 @@ use rule sambamba_sort as sort_mapped_simulated with:
         path = LOG_SORT_SIM_PATTERN
     benchmark: LOG_SORT_SIM_PATTERN.replace("log", "benchmark")
 
-# --- Calculate Coverage from Mapped Simulated Reads --- #
-rule calculate_simulated_coverage:
+# --- Get Classifiable Regions--- #
+rule define_classifiable_regions:
     input:
         # The sorted BAM file containing mapped simulated reads
         bam = SORTED_MAPPED_SIM_BAM_PATTERN
     output:
         # BED file of regions covered >= threshold (marked temp)
-        covered_bed = COVERED_REGIONS_BED_PATTERN
+        covered_bed = CLASSIFIABLE_REGIONS_BED_PATTERN
     params:
         threshold = 1  # Coverage threshold (site is kept if coverage >= threshold)
     log:
-        path = LOG_CALC_SIM_COV_PATTERN
+        path = LOG_DEF_CR_PATTERN
     conda:
         ".." / ENVS_DIR / "analysis.yaml"
-    threads: config.get("CALC_SIM_COV_THREADS", 1)
+    threads: config.get("DEF_CR_THREADS", 1)
     resources:
-        runtime=config.get("CALC_SIM_COV_RUNTIME", "30m"),
-        mem_mb=config.get("CALC_SIM_COV_MEM_MB", 2000),
-        cpus_per_task=config.get("CALC_SIM_COV_THREADS", 1)
-    benchmark: LOG_CALC_SIM_COV_PATTERN.replace("log", "benchmark")
+        cpus_per_task=config.get("DEF_CR_THREADS", 1),
+        mem_mb=config.get("DEF_CR_MEM_MB", 2000),
+        runtime=config.get("DEF_CR_RUNTIME", "30m")
+    benchmark: CLASSIFIABLE_REGIONS_BED_PATTERN.replace("log", "benchmark")
     shell:
         # Use bedtools genomecov -bga, coverage filter with awk, merge resulting bed-regions
         "bedtools genomecov -bga -ibam {input.bam} "
@@ -437,60 +432,6 @@ rule calculate_simulated_coverage:
             "| bedtools merge -i stdin "
             "> {output.covered_bed} "
             "2> {log.path}"
-
-# --- Identify Kraken 2 Masked Regions using k2mask --- #
-rule find_masked_regions:
-    input:
-        # Original reference genome
-        ref_fasta = get_actual_fasta_path
-    output:
-        # Final BED file of masked regions and the lowercase-masked genome
-        masked_bed = MASKED_REGIONS_BED_PATTERN,
-        masked_fasta = MASKED_FASTA_PATTERN
-    params:
-        # Determine masker executable path (uses k2mask if KRAKEN2_BIN_DIR, else dustmasker)
-        # For some reason k2mask is available if compiling kraken2 from source yourself, but not among
-        # the conda binaries, there it's dustmasker instead
-        masker_exec = str(Path(config["KRAKEN2_BIN_DIR"]) / "k2mask") if config.get("KRAKEN2_BIN_DIR") else "dustmasker"
-    log:
-        path = LOG_MASKED_REGIONS_PATTERN
-    conda:
-        # fasta_to_masked_bed.py needs k2mask or dustmasker (Kraken 2)
-        ".." / ENVS_DIR / "classify.yaml" if not config.get("KRAKEN2_BIN_DIR") else None
-    threads: config.get("K2MASK_THREADS", 1)
-    resources:
-        runtime=config.get("K2MASK_RUNTIME", "1h"),
-        mem_mb=config.get("K2MASK_MEM_MB", 2000),
-        cpus_per_task=config.get("K2MASK_THREADS", 1)
-    benchmark: LOG_MASKED_REGIONS_PATTERN.replace("log", "benchmark")
-    script:
-        "../scripts/fasta_to_masked_bed.py"
-
-# --- Define Classifiable Regions (subtract the masked regions (k2mask)) --- #
-rule define_classifiable_regions:
-    input:
-        # Regions covered by correctly classified simulated reads
-        coverage_bed = COVERED_REGIONS_BED_PATTERN,
-        # BED file of low-complexity regions (output of find_masked_regions)
-        masked_bed = MASKED_REGIONS_BED_PATTERN
-    output:
-        # Final BED file of classifiable regions, i.e., regions covered by 
-        # simulated and correctly kraken classified reads AND that are not masked
-        classifiable_bed = CLASSIFIABLE_REGIONS_BED_PATTERN
-    log:
-        path = LOG_DEFINE_CLASSIFIABLE_PATTERN
-    conda:
-        ".." / ENVS_DIR / "analysis.yaml"
-    threads: config.get("BEDTOOLS_SUBTRACT_THREADS", 1)
-    resources:
-        runtime=config.get("BEDTOOLS_SUBTRACT_RUNTIME", "15m"),
-        mem_mb=config.get("BEDTOOLS_SUBTRACT_MEM_MB", 2000),
-        cpus_per_task=config.get("BEDTOOLS_SUBTRACT_THREADS", 1)
-    benchmark: LOG_DEFINE_CLASSIFIABLE_PATTERN.replace("log", "benchmark")
-    shell:
-        # Subtract masked regions (-b) from covered regions (-a)
-        "bedtools subtract -a {input.coverage_bed} -b {input.masked_bed} "
-            "> {output.classifiable_bed} 2> {log.path}"
 
 # --- Intersect Real Reads with Classifiable Regions --- #
 rule intersect_real_reads_with_classifiable_regions:

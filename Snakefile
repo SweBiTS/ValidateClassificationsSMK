@@ -41,12 +41,9 @@ if config.get("RUN_VALIDATION", True) and config.get("KRAKEN2_BIN_DIR"):
     if not kraken2_bin_dir.is_dir():
         sys.exit(f"ERROR: KRAKEN2_BIN_DIR is not a valid directory: {kraken2_bin_dir}")
     kraken2_exe_path = kraken2_bin_dir / "kraken2"
-    k2mask_exe_path = kraken2_bin_dir / "k2mask"
     if not kraken2_exe_path.is_file() or not os.access(kraken2_exe_path, os.X_OK):
          sys.exit(f"ERROR: 'kraken2' not found or not executable in {kraken2_bin_dir}")
-    if not k2mask_exe_path.is_file() or not os.access(k2mask_exe_path, os.X_OK):
-         sys.exit(f"ERROR: 'k2mask' not found or not executable in {kraken2_bin_dir}")
-    print(f"WORKFLOW_INFO: Will use Kraken 2 binaries in directory {kraken2_bin_dir}")
+    print(f"WORKFLOW_INFO: Will use Kraken 2 binary in directory {kraken2_bin_dir}")
 
 # --- Environment Detection --- #
 # Detect WSL vs native Linux. BBMap JNI acceleration (`usejni=t`) failed on WSL

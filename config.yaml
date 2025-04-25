@@ -40,8 +40,8 @@ KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
 KRAKEN2_CONFIDENCE: 0.1
 # Minimum number of minimizer hit groups required for classification
 KRAKEN2_MINIMUM_NUM_HIT_GROUPS: 10
-# Optional: Path to directory containing kraken2 and k2mask executables.
-# If null or commented out, executables are assumed to be in PATH (via conda).
+# Optional: Path to directory containing kraken2.
+# If null or commented out, executable are assumed to be in PATH (via conda).
 #KRAKEN2_BIN_DIR: "/pfs/proj/nobackup/fs/projnb10/snic2019-35-73/bin/kraken2_SweBiTS/scripts"
 
 
@@ -65,6 +65,8 @@ BBMAP_MAP_THREADS: 16
 BBMAP_MAP_RUNTIME: "24h"
 
 # Sambamba Sort Resources
+# Rule: sambamba_sort (map.smk)
+# Rule: sort_mapped_simulated (simulation_validation.smk)
 # Dynamic
 SAMBAMBA_SORT_THREADS: 8
 SAMBAMBA_SORT_MEM_LIMIT_GB: "30G"
@@ -125,21 +127,11 @@ SEQTK_THREADS: 1
 SEQTK_MEM_MB: 30000
 SEQTK_RUNTIME: "2h"
 
-# Bedtools GenomeCov/Merge Resources (calculate_simulated_coverage)
+# Rule: define_classifiable_regions
 # Dynamic
-CALC_SIM_COV_THREADS: 1
-CALC_SIM_COV_MEM_MB: 6000
-CALC_SIM_COV_RUNTIME: "30m"
-
-# Resources for k2mask (rule: find_masked_regions)
-K2MASK_THREADS: 1
-K2MASK_MEM_MB: 2000
-K2MASK_RUNTIME: "1h"
-
-# Bedtools Subtract Resources (rule: define_classifiable_regions)
-BEDTOOLS_SUBTRACT_THREADS: 1
-BEDTOOLS_SUBTRACT_MEM_MB: 2000
-BEDTOOLS_SUBTRACT_RUNTIME: "30m"
+DEF_CR_THREADS: 1
+DEF_CR_MEM_MB: 6000
+DEF_CR_RUNTIME: "30m"
 
 # Sort Classifiable BED file Resources
 SORT_BED_THREADS: 1
