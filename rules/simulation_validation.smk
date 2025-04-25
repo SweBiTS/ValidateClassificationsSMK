@@ -400,7 +400,7 @@ use rule bbmap_map_reads as map_correct_simulated with:
     benchmark: LOG_MAP_SIM_PATTERN.replace("log", "benchmark")
 
 # --- Sort Mapped Simulated Reads BAM file by coordinate --- #
-# Reuse the samtools sort rule from map.smk, but with different input/output patterns
+# Reuse the sambamba sort rule from map.smk, but with different input/output patterns
 use rule sambamba_sort as sort_mapped_simulated with:
     input:
         bam = MAPPED_SIM_BAM_PATTERN
