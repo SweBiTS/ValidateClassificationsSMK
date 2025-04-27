@@ -19,8 +19,8 @@ benchmarks/
 supporting_files/*
 supporting_files/genomes/*
 
-# ... but keep the filestructure
-!supporting_files/.gitkeep
+# ... but keep the filestructure and mapping spec. template
+!supporting_files/mapping_specification_TEMPLATE.tsv
 !supporting_files/genomes/
 !supporting_files/genomes/.gitkeep
 
