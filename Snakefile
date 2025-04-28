@@ -3,6 +3,7 @@ import pandas as pd
 import yaml
 import logging
 import sys
+import re
 
 # TODO: Implement dynamic resource allocation that depend on the size of the input files.
 # TODO: Implement resubmission of jobs that fail, that increases the memory and/or time resources based on the "attempts" variable
@@ -67,6 +68,7 @@ def load_mapping_spec(config_mapping_spec_path):
     """
     Load the mapping specification from the provided path.
     Expected columns: 'tax_id', 'name', and 'fasta_file'.
+    Validates the name column format (alphanumerics and spaces only).
     Validates fasta filenames (must end in .fa/.fasta/.fna).
     Removes duplicate rows.
     Adds a 'genome_basename' column derived from 'fasta_file'.
@@ -75,7 +77,8 @@ def load_mapping_spec(config_mapping_spec_path):
     mapping_spec_file = Path(config_mapping_spec_path)
     required_columns = ['tax_id', 'name', 'fasta_file']
     allowed_suffixes = {'.fasta', '.fa', '.fna'}
-
+    allowed_name_pattern = re.compile(r"^[a-zA-Z0-9 ]+$")  # Allowed in the name col (letters, numbers, space)
+    
     if not mapping_spec_file.is_file():
         sys.exit(f"WORKFLOW_ERROR: Mapping specification file not found at '{mapping_spec_file}'. Exiting.")
 
@@ -106,6 +109,17 @@ def load_mapping_spec(config_mapping_spec_path):
                          f"(must end in {', '.join(allowed_suffixes)}):\n" + "\n".join(invalid_files))
             sys.exit(error_msg)
 
+        # Validate name column format
+        invalid_names = []
+        for index, row in mapping_df.iterrows():
+            name = row['name']
+            if not allowed_name_pattern.match(name):
+                invalid_names.append(f"Row index {index}: tax_id='{row['tax_id']}', name='{name}'")
+        if invalid_names:
+            error_msg = (f"WORKFLOW_ERROR: Found rows in '{mapping_spec_file}' with invalid characters in the 'name' column "
+                         f"(only letters, numbers, and spaces are allowed):\n" + "\n".join(invalid_names))
+            sys.exit(error_msg)
+
         # Drop duplicated rows
         initial_rows = len(mapping_df)
         mapping_df.drop_duplicates(inplace=True)
@@ -124,21 +138,24 @@ def load_mapping_spec(config_mapping_spec_path):
     return mapping_df
 
 # --- Generate Target Output Files Function --- #
-def get_target_outputs(mapping_spec, pattern_template):
+def get_target_outputs(mapping_spec_df, pattern_template):
     """
-    Generates a list of output files based on the mapping specification and the
-    provided file name pattern. Finds the wildcards from the mapping specification
-    and applies them to the provided pattern template.
+    Generates a list of output files based on the mapping specification DataFrame
+    and the provided file name pattern template.
     """
     target_files = []
-    for tax_id, genome_list in mapping_spec.items():
-        for genome_fasta in genome_list:
-            genome_basename = Path(genome_fasta).stem
-            target_path = Path(pattern_template.format(
-                tax_id=tax_id,
-                genome_basename=genome_basename))
-            target_files.append(str(target_path))
-    
+    for index, row in mapping_spec_df.iterrows():
+        # Prepare format dictionary from the row
+        format_dict = row.to_dict()
+
+        # Sanitize value in name column to be used in paths (spaces -> underscores)
+        sanitized_name = re.sub(r'\s+', '_', format_dict['name'])
+        format_dict['sanitized_name'] = sanitized_name
+
+        # Generate the target path string using available keys from the row
+        target_path_str = pattern_template.format(**format_dict)
+        target_files.append(target_path_str)
+
     return target_files
 
 # --- Target Function for Rule All --- #
