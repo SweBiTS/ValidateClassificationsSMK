@@ -65,30 +65,6 @@ else:
 # --- Load Mapping Specification --- #
 def load_mapping_spec(config_mapping_spec_path):
     """
-    Load the mapping specification from the provided path. The mapping specification
-    is a YAML file that contains taxID entries and their corresponding genome FASTA files.
-    """
-    try:
-        with open(config_mapping_spec_path, 'r') as f:
-            raw_mapping_spec = yaml.safe_load(f)
-            if raw_mapping_spec is None:
-                mapping_spec_data = {}
-                print(f"WORKFLOW_INFO: Mapping specification file '{config_mapping_spec_path}' is empty or invalid.")
-            else:
-                mapping_spec_data = {str(k): v for k, v in raw_mapping_spec.items()}
-                print(f"WORKFLOW_INFO: Loaded {len(mapping_spec_data)} taxID entries from mapping specification file.")
-    except FileNotFoundError:
-        sys.exit(f"WORKFLOW_INFO: Mapping specification file not found at '{config_mapping_spec_path}'. Exiting.")
-    except yaml.YAMLError as e:
-        sys.exit(f"WORKFLOW_INFO: Error parsing YAML file '{config_mapping_spec_path}': {e}. Exiting.")
-    except Exception as e:
-        sys.exit(f"WORKFLOW_INFO: An unexpected error occurred reading '{config_mapping_spec_path}': {e}. Exiting.")
-    
-    return mapping_spec_data
-
-# --- Load Mapping Specification ---
-def load_mapping_spec(config_mapping_spec_path):
-    """
     Load the mapping specification from the provided path.
     Expected columns: 'tax_id', 'name', and 'fasta_file'.
     Validates fasta filenames (must end in .fa/.fasta/.fna).
