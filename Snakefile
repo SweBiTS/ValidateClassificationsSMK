@@ -86,6 +86,67 @@ def load_mapping_spec(config_mapping_spec_path):
     
     return mapping_spec_data
 
+# --- Load Mapping Specification ---
+def load_mapping_spec(config_mapping_spec_path):
+    """
+    Load the mapping specification from the provided path.
+    Expected columns: 'tax_id', 'name', and 'fasta_file'.
+    Validates fasta filenames (must end in .fa/.fasta/.fna).
+    Removes duplicate rows.
+    Adds a 'genome_basename' column derived from 'fasta_file'.
+    Returns a pandas DataFrame.
+    """
+    mapping_spec_file = Path(config_mapping_spec_path)
+    required_columns = ['tax_id', 'name', 'fasta_file']
+    allowed_suffixes = {'.fasta', '.fa', '.fna'}
+
+    if not mapping_spec_file.is_file():
+        sys.exit(f"WORKFLOW_ERROR: Mapping specification file not found at '{mapping_spec_file}'. Exiting.")
+
+    try:
+        mapping_df = pd.read_csv(
+            mapping_spec_file,
+            sep='\t',
+            comment='#',
+            dtype={'tax_id': str, 'name': str, 'fasta_file': str})
+
+        # Validate that the mapping spec file is formatted correctly and is non-empty
+        missing_cols = [col for col in required_columns if col not in mapping_df.columns]
+        if missing_cols:
+            sys.exit(f"WORKFLOW_ERROR: Mapping specification TSV '{mapping_spec_file}' is missing required columns: {missing_cols}. Exiting.")
+
+        mapping_df.dropna(subset=required_columns, inplace=True)
+        if mapping_df.empty:
+            print(f"WORKFLOW_WARNING: Mapping specification file '{mapping_spec_file}' is empty or contains only comments/header.")
+            return pd.DataFrame(columns=required_columns + ['genome_basename'])
+
+        # Validate fasta_file suffixes
+        invalid_files = []
+        for fname in mapping_df['fasta_file']:
+            if Path(fname).suffix.lower() not in allowed_suffixes:
+                invalid_files.append(fname)
+        if invalid_files:
+            error_msg = (f"WORKFLOW_ERROR: Found rows in '{mapping_spec_file}' with invalid 'fasta_file' suffixes "
+                         f"(must end in {', '.join(allowed_suffixes)}):\n" + "\n".join(invalid_files))
+            sys.exit(error_msg)
+
+        # Drop duplicated rows
+        initial_rows = len(mapping_df)
+        mapping_df.drop_duplicates(inplace=True)
+        dropped_count = initial_rows - len(mapping_df)
+        if dropped_count > 0:
+            print(f"WORKFLOW_INFO: Removed {dropped_count} duplicate rows from mapping specification.")
+
+        # Add the genome_basename column (remove suffix)
+        mapping_df['genome_basename'] = mapping_df['fasta_file'].apply(lambda f: Path(f).stem)
+        
+        print(f"WORKFLOW_INFO: Found {len(mapping_df)} unique and valid entries from '{mapping_spec_file}'.")
+
+    except Exception as e:
+        sys.exit(f"WORKFLOW_ERROR: An error occurred reading or processing mapping specification TSV '{mapping_spec_file}': {e}. Exiting.")
+
+    return mapping_df
+
 # --- Generate Target Output Files Function --- #
 def get_target_outputs(mapping_spec, pattern_template):
     """
