@@ -47,9 +47,15 @@ LOG_SUMMARIZE_VALIDATION_PATTERN = str(VALIDATION_LOG_DIR / "{sanitized_name}/{s
 LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_plot_validation_scatter.log")
 LOG_VALIDATION_BRANCH_REPORT_PATTERN = str(VALIDATION_LOG_DIR / "joint_validation_report.log")
 
-# ==================== #
-# --- HELPER FUNCS --- #
-# ==================== #
+# ================================== #
+# --- HELPER FUNCS AND VARIABLES --- #
+# ================================== #
+
+# Linearized values of all tax IDs, sanitized names, and genome basenames
+# to be used in the expand functions of rule validation_branch_report
+ALL_TAX_IDS = MAPPING_SPEC_DF['tax_id'].tolist()
+ALL_SANITIZED_NAMES = MAPPING_SPEC_DF['sanitized_name'].tolist()
+ALL_GENOME_BASENAMES = MAPPING_SPEC_DF['genome_basename'].tolist()
 
 def get_simulation_validation_targets(wildcards, pattern_template, **fixed_wildcards):
     """
@@ -513,7 +519,6 @@ rule validation_branch_report:
     input:
         # General Workflow Info Files
         ts_start = WF_TIMESTAMP_START_TARGET,
-        ts_end = WF_TIMESTAMP_END_TARGET,
         snk_version = WF_SNAKEMAKE_VERSION_TARGET,
 
         # Per-Validation Files
@@ -535,7 +540,7 @@ rule validation_branch_report:
         # Pass the whole mapping spec DF and relevant config values the script 
         # needs for the general section
         mapping_spec_df = MAPPING_SPEC_DF,
-        report_config = lambda w, input, config: {
+        report_config = lambda w, input: {
              "kraken_db": config.get("KRAKEN2_DB_PATH"),
              "kraken_conf": config.get("KRAKEN2_CONFIDENCE"),
              "kraken_mhg": config.get("KRAKEN2_MINIMUM_NUM_HIT_GROUPS"),
@@ -566,7 +571,7 @@ rule validation_branch_report:
 rule WF_collect_validation_branch:
     input:
         html_plots = get_all_html_files,
-        joint_report = VALIDATION_BRANCH_REPORT_PATTERN
+        joint_report = VALIDATION_BRANCH_REPORT_PATTERN,
         start_ts = WF_TIMESTAMP_START_TARGET
     output:
         WF_VALIDATION_BRANCH_TARGET

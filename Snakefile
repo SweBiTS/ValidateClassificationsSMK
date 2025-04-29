@@ -189,7 +189,7 @@ def get_workflow_targets():
         Target file becomes a flag file that triggers the coverage checkpoint to run, which determines 
         the combinations of tax_id/genome_basename values to validate.
     
-    Also adds the target files for tracking start/end times of the workflow, as well as to hold the
+    Also adds the target file for tracking start time of the workflow and the one to hold the
     snakemake version that's used for running the workflow.
     """
     final_targets = [WF_MAPPING_BRANCH_TARGET]
@@ -199,7 +199,6 @@ def get_workflow_targets():
         final_targets.append(WF_VALIDATION_BRANCH_TARGET)
     
     final_targets.append(WF_TIMESTAMP_START_TARGET)
-    final_targets.append(WF_TIMESTAMP_END_TARGET)
     final_targets.append(WF_SNAKEMAKE_VERSION_TARGET)
 
     return final_targets
@@ -216,15 +215,10 @@ wildcard_constraints:
 WF_MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "1_mapping.done")
 WF_VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "2_validation.done")
 WF_TIMESTAMP_START_TARGET = str(OUTPUT_DIR / "WF_start.txt")
-WF_TIMESTAMP_END_TARGET = str(OUTPUT_DIR / "WF_end.txt")
 WF_SNAKEMAKE_VERSION_TARGET = str(OUTPUT_DIR / "WF_snk_version.txt")
 
 # --- Load the mapping specification --- #
 MAPPING_SPEC_DF = load_mapping_spec(MAPPING_SPEC)
-
-ALL_TAX_IDS = MAPPING_SPEC_DF['tax_id'].tolist()
-ALL_SANITIZED_NAMES = MAPPING_SPEC_DF['sanitized_name'].tolist()
-ALL_GENOME_BASENAMES = MAPPING_SPEC_DF['genome_basename'].tolist()
 
 # --- Include Rule Modules --- #
 include: "rules/map.smk"
@@ -233,7 +227,6 @@ include: "rules/simulation_validation.smk"
 localrules: 
     all,
     WF_timestamp_start,
-    WF_timestamp_end,
     WF_snakemake_version
 
 # --- Define the final targets of the workflow --- #
@@ -255,15 +248,3 @@ rule WF_snakemake_version:
         txt_version = WF_SNAKEMAKE_VERSION_TARGET
     shell:
         "snakemake --version > {output.txt_version} 2>&1"
-
-# Capture end time
-rule WF_timestamp_end:
-    input:
-        # Depends on the completion flags of the main branches
-        WF_MAPPING_BRANCH_TARGET 
-            if not config.get("RUN_VALIDATION", True) 
-            else WF_VALIDATION_BRANCH_TARGET
-    output:
-        ts_end = WF_TIMESTAMP_END_TARGET
-    shell:
-        "date --iso-8601=seconds > {output.ts_end}"
