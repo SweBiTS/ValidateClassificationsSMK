@@ -70,6 +70,7 @@ def load_mapping_spec(config_mapping_spec_path):
     Expected columns: 'tax_id', 'name', and 'fasta_file'.
     Validates the name column format (alphanumerics and spaces only).
     Validates fasta filenames (must end in .fa/.fasta/.fna).
+    Checks that each derived 'genome_basename' maps to only one 'fasta_file'.
     Removes duplicate rows.
     Adds a 'genome_basename' column derived from 'fasta_file'.
     Returns a pandas DataFrame.
@@ -120,6 +121,18 @@ def load_mapping_spec(config_mapping_spec_path):
                          f"(only letters, numbers, and spaces are allowed):\n" + "\n".join(invalid_names))
             sys.exit(error_msg)
 
+        # Check if listed fasta files actually exist
+        missing_fasta_files = []
+        for index, row in mapping_df.iterrows():
+            fasta_filename = row['fasta_file']
+            expected_path = GENOMES_DIR / fasta_filename
+            if not expected_path.is_file():
+                missing_fasta_files.append(f"Row index {index}: tax_id='{row['tax_id']}', file='{fasta_filename}' (expected at '{expected_path}')")
+        if missing_fasta_files:
+             error_msg = (f"WORKFLOW_ERROR: Found rows in '{mapping_spec_file}' referencing FASTA files that can't be found in '{GENOMES_DIR}':\n"
+                          + "\n".join(missing_fasta_files))
+             sys.exit(error_msg)
+
         # Drop duplicated rows
         initial_rows = len(mapping_df)
         mapping_df.drop_duplicates(inplace=True)
@@ -130,6 +143,14 @@ def load_mapping_spec(config_mapping_spec_path):
         # Add the genome_basename column (remove suffix)
         mapping_df['genome_basename'] = mapping_df['fasta_file'].apply(lambda f: Path(f).stem)
         
+        # Check for genome_basename mapping to multiple unique fasta_files
+        basename_counts = mapping_df.groupby('genome_basename')['fasta_file'].nunique()
+        conflicting_basenames = basename_counts[basename_counts > 1]
+        if not conflicting_basenames.empty:
+            error_msg = (f"WORKFLOW_ERROR: Inconsistency in mapping specification '{mapping_spec_file}'. "
+                         f"Multiple files with the same basename (same name, different suffix) found.")
+            sys.exit()
+
         print(f"WORKFLOW_INFO: Found {len(mapping_df)} unique and valid entries from '{mapping_spec_file}'.")
 
     except Exception as e:
@@ -188,7 +209,7 @@ MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "1_mapping.done")
 VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "2_validation.done")
 
 # --- Load the mapping specification --- #
-MAPPING_SPEC_DATA = load_mapping_spec(MAPPING_SPEC)
+MAPPING_SPEC_DF = load_mapping_spec(MAPPING_SPEC)
 
 # --- Include Rule Modules --- #
 include: "rules/map.smk"

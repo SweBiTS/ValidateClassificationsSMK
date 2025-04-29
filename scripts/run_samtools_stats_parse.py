@@ -76,12 +76,14 @@ except Exception as e:
 # --- Parse samtools stats output ---
 logging.info(f"Parsing samtools stats output file: {output_stats_raw}")
 extracted_params = {
-    "mean_insert_size": None,
-    "std_dev_insert_size": None,
-    "average_read_length": None,
+    "estimated_mean_insert_size": None,
+    "estimated_std_insert_size": None,
+    "estimated_mean_read_length": None,
+    "used_mean_insert_size": None,
+    "used_std_insert_size": None,
+    "used_mean_read_length": None,
     "source_bam": str(input_bam),
-    "source_stats_file": str(output_stats_raw)
-}
+    "source_stats_file": str(output_stats_raw)}
 found_count = 0
 expected_count = 3 # How many params we are looking for
 
@@ -103,48 +105,42 @@ try:
                     continue # Skip if value captured wasn't actually numeric
 
                 if key == "insert size average":
-                    extracted_params["mean_insert_size"] = value
+                    extracted_params["estimated_mean_insert_size"] = value
                     found_count += 1
                 elif key == "insert size standard deviation":
-                    extracted_params["std_dev_insert_size"] = value
+                    extracted_params["estimated_std_insert_size"] = value
                     found_count += 1
                 elif key == "average length": # Get average read length too
-                    extracted_params["average_read_length"] = value
+                    extracted_params["estimated_mean_read_length"] = value
                     found_count +=1
 
             # Stop if we found all needed params
             if found_count >= expected_count:
                  break
 
-    # Validation after parsing
-    parsing_successful = True
-    if extracted_params["mean_insert_size"] is None:
-        logging.warning("Could not find 'insert size average' in stats output.")
-        parsing_successful = False
-    if extracted_params["std_dev_insert_size"] is None:
-        if extracted_params["mean_insert_size"] is not None:
-            logging.warning("Could not find 'insert size standard deviation' in stats output. Assigning 0.0 as mean was found.")
-            extracted_params["std_dev_insert_size"] = 0.0 # Assign a default only if mean exists
-        else:
-             logging.warning("Could not find 'insert size standard deviation' in stats output.")
-             parsing_successful = False # Mark failure if mean is also missing
+    # Validate parameters after parsing
+    extracted_params["used_mean_insert_size"] = extracted_params["estimated_mean_insert_size"]
+    extracted_params["used_std_insert_size"] = extracted_params["estimated_std_insert_size"]
+    extracted_params["used_mean_read_length"] = extracted_params["estimated_mean_read_length"]
+    insert_size = extracted_params["estimated_mean_insert_size"]
+    insert_size_std = extracted_params["estimated_std_insert_size"]
+    insert_size_std_ratio = insert_size_std / insert_size
+    read_length = extracted_params["estimated_mean_read_length"]
+    if insert_size < 100 or insert_size_std_ratio > 0.5 or read_length < 50:
+        logging.warning(f"Warning: Found indications of bad estimations of insert size.")
+        logging.warning(f"mean_insert_size: {insert_size}")
+        logging.warning(f"std_dev_insert_size: {insert_size_std}")
+        logging.warning(f"Setting simulation parameters to reasonable defaults.")
+        logging.warning(f"Setting mean insert size: 300")
+        logging.warning(f"Setting stdev of insert size to 20% of insert size: 60")
+        logging.warning(f"Setting average read length: 150 bp")
+        extracted_params["used_mean_insert_size"] = 300
+        extracted_params["used_std_insert_size"] = 60
+        extracted_params["used_mean_read_length"] = 150
 
-    if extracted_params["average_read_length"] is None:
-        logging.warning("Could not find 'average length' in stats output.")
-        parsing_successful = False
-
-    if not parsing_successful:
-         logging.error("Failed to parse one or more required parameters from samtools stats output.")
-         # Exit if essential parameters are missing
-         if extracted_params["mean_insert_size"] is None or extracted_params["std_dev_insert_size"] is None:
-             logging.critical("Exiting: Missing essential simulation parameters (Mean/StdDev Insert Size).")
-             sys.exit(1)
-         # Otherwise, just log error and continue to write partial JSON if needed
-
-
-    logging.info(f"Extracted params: Mean Insert={extracted_params['mean_insert_size']}, "
-                 f"StdDev Insert={extracted_params['std_dev_insert_size']}, "
-                 f"Avg Length={extracted_params['average_read_length']}")
+    logging.info(f"Will use params: Mean Insert={extracted_params['used_mean_insert_size']}, "
+                 f"StdDev Insert={extracted_params['used_std_insert_size']}, "
+                 f"Avg Length={extracted_params['used_mean_read_length']}")
 
     # --- Create Output JSON ---
     logging.info(f"Writing simulation parameters to {output_json}")

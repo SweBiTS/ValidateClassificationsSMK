@@ -9,48 +9,36 @@ from pathlib import Path
 MAPPING_OUT_DIR = OUTPUT_DIR / "mapping"
 BBMAP_INDEX_DIR = OUTPUT_DIR / "bbmap_indices"
 BBMAP_INDEX_DIR_PATTERN = str(BBMAP_INDEX_DIR / "{genome_basename}")
-RAW_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping.bam")
-SORTED_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping.sorted.bam")
-DEDUP_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam")
-DEDUP_BAM_INDEX_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_dedup.bam.bai")
-STATS_OUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/mapping_stats.txt")
-COVERAGE_OUTPUT_PATTERN = str(MAPPING_OUT_DIR / "{tax_id}/{genome_basename}/coverage.tsv")
+RAW_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_mapping.bam")
+SORTED_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_mapping.sorted.bam")
+DEDUP_BAM_OUT_PATTERN = str(MAPPING_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_mapping_dedup.bam")
+DEDUP_BAM_INDEX_OUT_PATTERN = str(MAPPING_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_mapping_dedup.bam.bai")
+STATS_OUT_PATTERN = str(MAPPING_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_mapping_stats.txt")
+COVERAGE_OUTPUT_PATTERN = str(MAPPING_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_coverage.tsv")
 
 # --- log patterns --- #
 MAPPING_LOG_DIR = LOG_DIR / "mapping"
 LOG_BBMAP_INDEX_PATTERN = str(MAPPING_LOG_DIR / "{genome_basename}__bbmap_index.log")
-LOG_MAP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__bbmap_map.log")
-LOG_SORT_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__sambamba_sort.log")
-LOG_MARKDUP_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__sambamba_markdup.log")
-LOG_CALC_COV_PATTERN = str(MAPPING_LOG_DIR / "{tax_id}_{genome_basename}__coverage.log")
+LOG_MAP_PATTERN = str(MAPPING_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_bbmap_map.log")
+LOG_SORT_PATTERN = str(MAPPING_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_sambamba_sort.log")
+LOG_MARKDUP_PATTERN = str(MAPPING_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_sambamba_markdup.log")
+LOG_CALC_COV_PATTERN = str(MAPPING_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_coverage.log")
 
 # ==================== #
 # --- HELPER FUNCS --- #
 # ==================== #
 
-# --- Find Actual Genome File Path ---
-def get_actual_fasta_path(wildcards):
-    """Finds the full path to the genome file, checking common extensions."""
+def get_fasta_path(wildcards):
+    """Get the path to the reference file, uses the mapping spec DF"""
     basename = wildcards.genome_basename
-    genomes_dir = GENOMES_DIR
-    
-    # Define the extensions to check in order of preference
-    extensions_to_check = [".fasta", ".fa", ".fna"]
-
-    for ext in extensions_to_check:
-        potential_path = genomes_dir / f"{basename}{ext}"
-        if potential_path.exists():
-            logger.debug(f"Found genome file for basename '{basename}' at: {potential_path}")
-            return str(potential_path) # Return the path string immediately if found
-
-    # If the loop finishes without returning, no file was found
-    raise FileNotFoundError(
-        f"Genome file for basename '{basename}' not found with any of the extensions "
-        f"{extensions_to_check} in directory '{genomes_dir}'")
+    matching_rows = MAPPING_SPEC_DF.query('genome_basename == @basename')
+    fasta_file_name = matching_rows['fasta_file'].iloc[0]    # Fasta filename
+    fasta_file_path = Path(GENOMES_DIR) / fasta_file_name    # Full path
+    return str(fasta_file_path)
 
 def get_all_coverage_files(wildcards):
     """Gets list of all per-sample coverage files. For collection rule at the end + checkpoint"""
-    return get_target_outputs(MAPPING_SPEC_DATA, COVERAGE_OUTPUT_PATTERN)
+    return get_target_outputs(MAPPING_SPEC_DF, COVERAGE_OUTPUT_PATTERN)
 
 # ============= #
 # --- RULES --- #
@@ -61,7 +49,7 @@ localrules: collect_mapping_branch
 # --- Index Reference Genome using BBMap --- #
 rule bbmap_index:
     input:
-        fasta = get_actual_fasta_path
+        fasta = get_fasta_path
     output:
         idx_dir = directory(BBMAP_INDEX_DIR_PATTERN)
     params:
@@ -145,11 +133,11 @@ rule sambamba_sort:
     conda:
         ".." / ENVS_DIR / "map.yaml"
     params:
-        mem_limit_gb = config.get("SAMBAMBA_SORT_MEM_LIMIT_GB", "30G")
+        mem_limit_gb = config.get("SAMBAMBA_SORT_MEM_LIMIT_GB", "8G")
     threads: config.get("SAMBAMBA_SORT_THREADS", 4)
     resources:
-        mem_mb=config.get("SAMBAMBA_SORT_MEM_MB", 32000),
-        runtime=config.get("SAMBAMBA_SORT_RUNTIME", "2h"),
+        mem_mb=config.get("SAMBAMBA_SORT_MEM_MB", 10000),
+        runtime=config.get("SAMBAMBA_SORT_RUNTIME", "1h"),
         cpus_per_task=config.get("SAMBAMBA_SORT_THREADS", 4)
     benchmark: LOG_SORT_PATTERN.replace("log", "benchmark")
     shell:
@@ -172,8 +160,7 @@ rule mark_duplicates_sambamba:
         # Define a temporary directory relative to the output
         tmpdir = lambda wildcards, output: Path(output.dedup_bam).parent / "tmp_sambamba_markdup"
     log:
-        path = LOG_MARKDUP_PATTERN.format(
-            tax_id="{tax_id}", genome_basename="{genome_basename}")
+        path = LOG_MARKDUP_PATTERN
     conda:
          ".." / ENVS_DIR / "map.yaml"
     threads: config.get("SAMBAMBA_MARKDUP_THREADS", 4)
@@ -213,7 +200,7 @@ rule calculate_coverage:
         # Use a samtools/awk pipe to calculate coverage
         r"""
         coverage=$(samtools depth -a {input.bam} | awk '{{sum+=$3; count++}} END {{if (count > 0) print sum/count; else print 0}}') 2> {log.path}
-        echo -e {wildcards.tax_id}\\t{wildcards.genome_basename}\\t${{coverage}} > {output.cov_file} 2>> {log.path}
+        echo -e {wildcards.tax_id}\\t{wildcards.sanitized_name}\\t{wildcards.genome_basename}\\t${{coverage}} > {output.cov_file} 2>> {log.path}
         """
 
 # --- Collect Coverage Results --- #

@@ -51,13 +51,14 @@ for cov_file in coverage_files:
                 sys.exit(1)
 
             parts = line.split('\t')
-            if len(parts) != 3:
-                logging.error(f"FATAL: Malformed line in {cov_file} (expected 3 tab-separated fields, found {len(parts)}): '{line}'")
+            if len(parts) != 4:
+                logging.error(f"FATAL: Malformed line in {cov_file} (expected 4 tab-separated fields, found {len(parts)}): '{line}'")
                 sys.exit(1)
 
             tax_id = parts[0]
-            genome_basename = parts[1]
-            coverage_value_str = parts[2]
+            sanitized_name = parts[1]
+            genome_basename = parts[2]
+            coverage_value_str = parts[3]
             try:
                 coverage_value = float(coverage_value_str)
             except ValueError:
@@ -67,7 +68,11 @@ for cov_file in coverage_files:
             # Check threshold
             if coverage_value >= min_coverage_threshold:
                 logging.info(f"PASS: {tax_id}/{genome_basename} (Coverage={coverage_value:.4f})")
-                passing_samples.append({'TaxID': tax_id, 'GenomeBasename': genome_basename})
+                passing_samples.append({
+                    'TaxID': tax_id,
+                    'SanitizedName': sanitized_name,
+                    'GenomeBasename': genome_basename,
+                    'MeanCovDepth': coverage_value_str})
             else:
                 logging.info(f"FAIL: {tax_id}/{genome_basename} (Coverage={coverage_value:.4f})")
 
@@ -92,7 +97,7 @@ logging.info(f"Writing passing samples to {output_passed_list_tsv}")
 try:
     if passing_samples:
         summary_df = pd.DataFrame(passing_samples)
-        summary_df = summary_df[["TaxID", "GenomeBasename"]]
+        summary_df = summary_df[["TaxID", "SanitizedName", "GenomeBasename", "MeanCovDepth"]]
         Path(output_passed_list_tsv).parent.mkdir(parents=True, exist_ok=True)
         summary_df.to_csv(output_passed_list_tsv, sep='\t', index=False, header=True)
     else:

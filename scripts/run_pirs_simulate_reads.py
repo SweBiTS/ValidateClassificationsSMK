@@ -49,24 +49,11 @@ logging.info(f"Reading parameters from {params_json}")
 try:
     with open(params_json, 'r', encoding='utf-8') as f:
         sim_params = json.load(f)
-    mean_ins = sim_params.get("mean_insert_size")
-    stdev_ins = sim_params.get("std_dev_insert_size")
-    avg_read_len = sim_params.get("average_read_length")
+    mean_ins = sim_params.get("used_mean_insert_size")
+    stdev_ins = sim_params.get("used_std_insert_size")
+    avg_read_len = sim_params.get("used_mean_read_length")
     if mean_ins is None or stdev_ins is None or avg_read_len is None:
         raise ValueError("Essential parameters missing from JSON.")
-    
-    # Validate parameters
-    if mean_ins < 100 or stdev_ins / mean_ins > 0.5:
-        logging.warning(f"Warning: Found indications of bad estimations of insert size.")
-        logging.warning(f"mean_insert_size: {mean_ins}")
-        logging.warning(f"std_dev_insert_size: {stdev_ins}")
-        logging.warning(f"Setting simulation parameters to reasonable defaults.")
-        logging.warning(f"Setting mean insert size: 300")
-        logging.warning(f"Setting stdev of insert size to 20% of insert size: 60")
-        logging.warning(f"Setting average read length: 150 bp")
-        mean_ins = 300
-        stdev_ins = 60
-        avg_read_len = 150
     
     # Convert to integers
     mean_ins = int(round(mean_ins))

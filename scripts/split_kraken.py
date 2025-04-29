@@ -35,24 +35,25 @@ logging.info("----------------------------")
 
 # --- Pre-compile regex and prepare output file mapping ---
 logging.info("Compiling regex and preparing output file map...")
-output_handles = {}  # Dictionary to hold open file handles { (taxid, genome): handle }
+output_handles = {}  # Dictionary to hold open file handles { (taxid, genome_basename): handle }
 script_failed = False  # Flag to check if we exited early
 try:
     header_regex = re.compile(header_regex_pattern)
-    # Create a mapping from (taxid, genome) tuple to output file path
+    # Create a mapping from (sanitized_name, taxid, genome_basename) tuple to output file path
     output_file_map = {}
     output_dirs = set()
 
     # Regex to extract wildcards from expected output paths
-    # Assumes pattern ".../{tax_id}/{genome_basename}/sim.kraken.out"
     out_pattern_regex = re.compile(filename_regex_pattern)
 
     for outfile_path_str in expected_output_files:
+        print(outfile_path_str)
         outfile_path = Path(outfile_path_str)
         match = out_pattern_regex.match(outfile_path_str)
         if match:
-            tax_id = match.group(1)
-            genome_basename = match.group(2)
+            sanitized_name = match.group(1)
+            tax_id = match.group(2)
+            genome_basename = match.group(3)
             output_file_map[(tax_id, genome_basename)] = outfile_path_str
             output_dirs.add(outfile_path.parent)
         else:
@@ -60,7 +61,7 @@ try:
             logging.error(f"FATAL: Could not parse expected wildcards from required output path: {outfile_path_str}")
             logging.error("This likely indicates a mismatch between rule output patterns and the parsing regex in the script, or an issue with the get_all_kraken_outs function.")
             sys.exit(1)
-
+    print(output_file_map)
     if not output_file_map:
          # If NO output files could be parsed, then something is wrong
          raise ValueError("Could not create mapping from wildcards to output files. Check patterns/helper function.")
