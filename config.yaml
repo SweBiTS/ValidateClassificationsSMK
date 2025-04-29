@@ -15,7 +15,7 @@ RUN_VALIDATION: True  # {true, false}
 # --- Input File Patterns & Specifications --- #
 # Change these as needed
 FASTQ_FILE_PATTERN: "fastq/taxID-{tax_id}_R{read_pair}.fq.gz"           # Pattern for input FASTQ files
-MAPPING_SPECIFICATION: "supporting_files/mapping_specification.yaml"    # File mapping tax IDs to genome files
+MAPPING_SPECIFICATION: "supporting_files/mapping_specification.tsv"    # File mapping tax IDs to genome files
 
 
 ###########################
@@ -29,13 +29,13 @@ BBMAP_MINID: 0.97               # Minimum identity for mapping
 MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION: 0  # 0: Run validation for all genomes (even if no reads are mapped)
 
 # --- pIRS specific settings --- #
-COVERAGE: 10  # Coverage for pIRS simulation
+COVERAGE: 0.1  # Coverage for pIRS simulation
 
 # --- Kraken 2 specific settings --- #
 # Path to the Kraken 2 database used in the validation step, needs to contain 
 # a taxonomy directory with names.dmp and nodes.dmp
-# KRAKEN2_DB_PATH: "kraken_db/test_db"
-KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
+KRAKEN2_DB_PATH: "kraken_db/test_db"
+# KRAKEN2_DB_PATH: "kraken_db/forest_troublemakers_241002"
 # Confidence threshold for Kraken 2 classification
 KRAKEN2_CONFIDENCE: 0.1
 # Minimum number of minimizer hit groups required for classification
@@ -58,26 +58,26 @@ BBMAP_INDEX_THREADS: 4
 BBMAP_INDEX_RUNTIME: "15m"
 
 # BBMap Map Reads Resources
-# Dynamic
-BBMAP_MAP_MEM: "30g"
-BBMAP_MAP_MEM_MB: 32000
-BBMAP_MAP_THREADS: 16
-BBMAP_MAP_RUNTIME: "24h"
+# # Dynamic
+# BBMAP_MAP_MEM: "30g"
+# BBMAP_MAP_MEM_MB: 32000
+# BBMAP_MAP_THREADS: 16
+# BBMAP_MAP_RUNTIME: "24h"
 
 # Sambamba Sort Resources
 # Rule: sambamba_sort (map.smk)
 # Rule: sort_mapped_simulated (simulation_validation.smk)
 # Dynamic
-SAMBAMBA_SORT_THREADS: 8
-SAMBAMBA_SORT_MEM_LIMIT_GB: "30G"
-SAMBAMBA_SORT_MEM_MB: 32000
-SAMBAMBA_SORT_RUNTIME: "2h"
+# SAMBAMBA_SORT_THREADS: 8
+# SAMBAMBA_SORT_MEM_LIMIT_GB: "30G"
+# SAMBAMBA_SORT_MEM_MB: 32000
+# SAMBAMBA_SORT_RUNTIME: "2h"
 
 # Sambamba Markdup Resources
 # Dynamic
-SAMBAMBA_MARKDUP_THREADS: 8
-SAMBAMBA_MARKDUP_MEM_MB: 12000
-SAMBAMBA_MARKDUP_RUNTIME: "2h"
+# SAMBAMBA_MARKDUP_THREADS: 8
+# SAMBAMBA_MARKDUP_MEM_MB: 12000
+# SAMBAMBA_MARKDUP_RUNTIME: "2h"
 
 # Check Real Read Coverage Resources
 CALC_REAL_COV_THREADS: 1
