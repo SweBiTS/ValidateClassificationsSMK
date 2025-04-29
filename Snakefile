@@ -71,7 +71,7 @@ def load_mapping_spec(config_mapping_spec_path):
     Validates the name column format (alphanumerics and spaces only).
     Validates fasta filenames (must end in .fa/.fasta/.fna).
     Checks that each derived 'genome_basename' maps to only one 'fasta_file'.
-    Removes duplicate rows.
+    Removes duplicate rows (based on columns tax_id and fasta_file).
     Adds a 'genome_basename' column derived from 'fasta_file'.
     Returns a pandas DataFrame.
     """
@@ -135,7 +135,7 @@ def load_mapping_spec(config_mapping_spec_path):
 
         # Drop duplicated rows
         initial_rows = len(mapping_df)
-        mapping_df.drop_duplicates(inplace=True)
+        mapping_df.drop_duplicates(['tax_id', 'fasta_file'], inplace=True)
         dropped_count = initial_rows - len(mapping_df)
         if dropped_count > 0:
             print(f"WORKFLOW_INFO: Removed {dropped_count} duplicate rows from mapping specification.")
@@ -143,6 +143,9 @@ def load_mapping_spec(config_mapping_spec_path):
         # Add the genome_basename column (remove suffix)
         mapping_df['genome_basename'] = mapping_df['fasta_file'].apply(lambda f: Path(f).stem)
         
+        # Add the sanitized_name column (replace spaces with underscores)
+        mapping_df['sanitized_name'] = mapping_df['name'].apply(lambda name: re.sub(r'\s+', '_', name))
+
         # Check for genome_basename mapping to multiple unique fasta_files
         basename_counts = mapping_df.groupby('genome_basename')['fasta_file'].nunique()
         conflicting_basenames = basename_counts[basename_counts > 1]
@@ -169,32 +172,37 @@ def get_target_outputs(mapping_spec_df, pattern_template):
         # Prepare format dictionary from the row
         format_dict = row.to_dict()
 
-        # Sanitize value in name column to be used in paths (spaces -> underscores)
-        sanitized_name = re.sub(r'\s+', '_', format_dict['name'])
-        format_dict['sanitized_name'] = sanitized_name
-
         # Generate the target path string using available keys from the row
         target_path_str = pattern_template.format(**format_dict)
         target_files.append(target_path_str)
 
     return target_files
 
-# --- Target Function for Rule All --- #
-def get_workflow_target():
+# --- Workflow Target Function --- #
+def get_workflow_targets():
     """
     Determines the final target file for the workflow based on the RUN_VALIDATION flag in the config.
     
     Target file is always at least the mapping branch target file.
 
     If validation:
-        Add a flag file that triggers the coverage checkpoint to run, which determines the combinations of
-        tax_id/genome_basename values to validate.
+        Target file becomes a flag file that triggers the coverage checkpoint to run, which determines 
+        the combinations of tax_id/genome_basename values to validate.
+    
+    Also adds the target files for tracking start/end times of the workflow, as well as to hold the
+    snakemake version that's used for running the workflow.
     """
-    final_target = MAPPING_BRANCH_TARGET
+    final_targets = [WF_MAPPING_BRANCH_TARGET]
+    
     if config.get("RUN_VALIDATION", True):
-        logger.info("RUN_VALIDATION=TRUE. Running the validation branch of the workflow.")
-        final_target = [MAPPING_BRANCH_TARGET, VALIDATION_BRANCH_TARGET]
-    return final_target
+        print("RUN_VALIDATION=TRUE. Running the validation branch of the workflow.")
+        final_targets.append(WF_VALIDATION_BRANCH_TARGET)
+    
+    final_targets.append(WF_TIMESTAMP_START_TARGET)
+    final_targets.append(WF_TIMESTAMP_END_TARGET)
+    final_targets.append(WF_SNAKEMAKE_VERSION_TARGET)
+
+    return final_targets
 
 
 # ================================== #
@@ -205,20 +213,57 @@ wildcard_constraints:
     tax_id="[0-9]+"
 
 # --- Final Targets --- #
-MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "1_mapping.done")
-VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "2_validation.done")
+WF_MAPPING_BRANCH_TARGET = str(OUTPUT_DIR / "1_mapping.done")
+WF_VALIDATION_BRANCH_TARGET = str(OUTPUT_DIR / "2_validation.done")
+WF_TIMESTAMP_START_TARGET = str(OUTPUT_DIR / "WF_start.txt")
+WF_TIMESTAMP_END_TARGET = str(OUTPUT_DIR / "WF_end.txt")
+WF_SNAKEMAKE_VERSION_TARGET = str(OUTPUT_DIR / "WF_snk_version.txt")
 
 # --- Load the mapping specification --- #
 MAPPING_SPEC_DF = load_mapping_spec(MAPPING_SPEC)
+
+ALL_TAX_IDS = MAPPING_SPEC_DF['tax_id'].tolist()
+ALL_SANITIZED_NAMES = MAPPING_SPEC_DF['sanitized_name'].tolist()
+ALL_GENOME_BASENAMES = MAPPING_SPEC_DF['genome_basename'].tolist()
 
 # --- Include Rule Modules --- #
 include: "rules/map.smk"
 include: "rules/simulation_validation.smk"
 
-localrules: all
+localrules: 
+    all,
+    WF_timestamp_start,
+    WF_timestamp_end,
+    WF_snakemake_version
 
 # --- Define the final targets of the workflow --- #
 rule all:
     input:
-        # Depends on the RUN_VALIDATION flag in the config
-        get_workflow_target()
+        get_workflow_targets()
+
+# --- Rules creating workflow-related (WF) files for final report --- #
+# Capture start time
+rule WF_timestamp_start:
+    output:
+        ts_start = WF_TIMESTAMP_START_TARGET
+    shell:
+        "date --iso-8601=seconds > {output.ts_start}"
+
+# Capture Snakemake version
+rule WF_snakemake_version:
+    output:
+        txt_version = WF_SNAKEMAKE_VERSION_TARGET
+    shell:
+        "snakemake --version > {output.txt_version} 2>&1"
+
+# Capture end time
+rule WF_timestamp_end:
+    input:
+        # Depends on the completion flags of the main branches
+        WF_MAPPING_BRANCH_TARGET 
+            if not config.get("RUN_VALIDATION", True) 
+            else WF_VALIDATION_BRANCH_TARGET
+    output:
+        ts_end = WF_TIMESTAMP_END_TARGET
+    shell:
+        "date --iso-8601=seconds > {output.ts_end}"

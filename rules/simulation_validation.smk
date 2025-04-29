@@ -27,6 +27,7 @@ CLASSIFIABLE_REGIONS_BED_PATTERN = str(VALIDATION_OUT_DIR / "{sanitized_name}/{s
 OVERLAPPING_READS_BAM_PATTERN = str(VALIDATION_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_real_reads_in_classifiable_regions.bam")
 PER_SAMPLE_SUMMARY_PATTERN = str(VALIDATION_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_summary.tsv")
 PLOT_SCATTER_HTML_PATTERN  = str(VALIDATION_OUT_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_scatterplot_reads_vs_classifiable_length.html")
+VALIDATION_BRANCH_REPORT_PATTERN = str(VALIDATION_OUT_DIR / "joint_validation_report.html")
 
 # --- log patterns --- #
 VALIDATION_LOG_DIR = LOG_DIR / "validation"
@@ -44,6 +45,7 @@ LOG_DEF_CR_PATTERN = str(VALIDATION_LOG_DIR / "{sanitized_name}/{sanitized_name}
 LOG_INTERSECT_READS_PATTERN = str(VALIDATION_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_intersect_real_reads_with_classifiable_regions.log")
 LOG_SUMMARIZE_VALIDATION_PATTERN = str(VALIDATION_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_summarize_validation_coverage.log")
 LOG_PLOT_SCATTER_PATTERN = str(VALIDATION_LOG_DIR / "{sanitized_name}/{sanitized_name}_taxID-{tax_id}_genome-{genome_basename}_plot_validation_scatter.log")
+LOG_VALIDATION_BRANCH_REPORT_PATTERN = str(VALIDATION_LOG_DIR / "joint_validation_report.log")
 
 # ==================== #
 # --- HELPER FUNCS --- #
@@ -138,7 +140,7 @@ if not ALL_EXPECTED_KRAKEN_OUTS:
 
 localrules:
     aggregate_coverage_results,
-    collect_validation_branch
+    WF_collect_validation_branch
 
 # --- Checkpoint: Aggregate Coverage Results and Filter Samples --- #
 checkpoint aggregate_coverage_results:
@@ -506,11 +508,67 @@ rule plot_validation_scatter:
     script:
         "../scripts/plot_scatter_plotly.py"
 
-# --- Collect Simulation Validation Results --- #
-rule collect_validation_branch:
+# --- Final Report Generation --- #
+rule validation_branch_report:
     input:
-        get_all_html_files
+        # General Workflow Info Files
+        ts_start = WF_TIMESTAMP_START_TARGET,
+        ts_end = WF_TIMESTAMP_END_TARGET,
+        snk_version = WF_SNAKEMAKE_VERSION_TARGET,
+
+        # Per-Validation Files
+        real_stats = expand(STATS_OUT_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        markdup_logs = expand(LOG_MARKDUP_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        dedup_bams = expand(DEDUP_BAM_OUT_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        coverage_files = expand(COVERAGE_OUTPUT_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        sim_params_jsons = expand(SIM_PARAMS_OUT_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        pirs_logs = expand(LOG_SIMULATE_READS_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        correct_ids_logs = expand(LOG_EXTRACT_IDS_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        sim_stats = expand(MAPPED_SIM_STATS_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        classifiable_beds = expand(CLASSIFIABLE_REGIONS_BED_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES),
+        summary_tsvs = expand(PER_SAMPLE_SUMMARY_PATTERN, zip, sanitized_name=ALL_SANITIZED_NAMES, tax_id=ALL_TAX_IDS, genome_basename=ALL_GENOME_BASENAMES)
     output:
-        VALIDATION_BRANCH_TARGET
+        report_html = VALIDATION_BRANCH_REPORT_PATTERN
+    log:
+        path = LOG_VALIDATION_BRANCH_REPORT_PATTERN
+    params:
+        # Pass the whole mapping spec DF and relevant config values the script 
+        # needs for the general section
+        mapping_spec_df = MAPPING_SPEC_DF,
+        report_config = lambda w, input, config: {
+             "kraken_db": config.get("KRAKEN2_DB_PATH"),
+             "kraken_conf": config.get("KRAKEN2_CONFIDENCE"),
+             "kraken_mhg": config.get("KRAKEN2_MINIMUM_NUM_HIT_GROUPS"),
+             "cov_cutoff": config.get("MIN_MEAN_DEPTH_COVERAGE_FOR_VALIDATION"),
+             "sim_cov_target": config.get("COVERAGE"),
+             "bbmap_minid": config.get("BBMAP_MINID"),
+             "fastq_pattern": config.get("FASTQ_FILE_PATTERN"),
+             "mapping_spec_path": str(MAPPING_SPEC)},
+        # Patterns are used to find the input files that are related to each
+        # combination of tax_id and genome_basename (using MAPPING_SPEC_DF)
+        path_patterns = {
+             "real_stats": STATS_OUT_PATTERN,
+             "markdup_logs": LOG_MARKDUP_PATTERN,
+             "dedup_bams": DEDUP_BAM_OUT_PATTERN,
+             "coverage_files": COVERAGE_OUTPUT_PATTERN,
+             "sim_params_jsons": SIM_PARAMS_OUT_PATTERN,
+             "pirs_logs": LOG_SIMULATE_READS_PATTERN,
+             "correct_ids_logs": LOG_EXTRACT_IDS_PATTERN,
+             "sim_stats": MAPPED_SIM_STATS_PATTERN,
+             "classifiable_beds": CLASSIFIABLE_REGIONS_BED_PATTERN,
+             "summary_tsvs": PER_SAMPLE_SUMMARY_PATTERN}
+    conda:
+        ".." / ENVS_DIR / "analysis.yaml"
+    script:
+        "../scripts/generate_validation_branch_report.py"
+
+# --- Collect Simulation Validation Results --- #
+rule WF_collect_validation_branch:
+    input:
+        html_plots = get_all_html_files,
+        joint_report = VALIDATION_BRANCH_REPORT_PATTERN
+        start_ts = WF_TIMESTAMP_START_TARGET
+    output:
+        WF_VALIDATION_BRANCH_TARGET
     shell:
         "touch {output}"

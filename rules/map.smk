@@ -44,7 +44,8 @@ def get_all_coverage_files(wildcards):
 # --- RULES --- #
 # ============= #
 
-localrules: collect_mapping_branch
+localrules:
+    WF_collect_mapping_branch
 
 # --- Index Reference Genome using BBMap --- #
 rule bbmap_index:
@@ -204,10 +205,12 @@ rule calculate_coverage:
         """
 
 # --- Collect Coverage Results --- #
-rule collect_mapping_branch:
+rule WF_collect_mapping_branch:
     input:
-        get_all_coverage_files
+        cov_files = get_all_coverage_files,
+        start_ts = WF_TIMESTAMP_START_TARGET
     output:
-        MAPPING_BRANCH_TARGET
+        WF_MAPPING_BRANCH_TARGET
     shell:
         "touch {output}"
+
