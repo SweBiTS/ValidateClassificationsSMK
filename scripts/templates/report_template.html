@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Validation Pipeline Report</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; font-size: 14px; }
+        h1 { text-align: center; color: #2c3e50; }
+        h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; color: #2980b9; margin-top: 30px; }
+        h3 { color: #34495e; margin-top: 25px; }
+        h4 { color: #7f8c8d; margin-top: 20px; margin-bottom: 5px; }
+        table { border-collapse: collapse; margin-bottom: 15px; width: auto; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; vertical-align: top; }
+        th { background-color: #ecf0f1; color: #34495e; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .section { border: 1px solid #bdc3c7; padding: 15px; margin-bottom: 25px; border-radius: 5px; background-color: #ffffff; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .plot-container { margin-top: 15px; border: 1px solid #eee; padding: 5px; }
+        pre { background-color: #f5f5f5; padding: 10px; border: 1px solid #ddd; white-space: pre-wrap; word-wrap: break-word; }
+        .value-na { color: #95a5a6; font-style: italic; } /* Style for N/A values */
+        .metric-group { margin-bottom: 15px; }
+    </style>
+    <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+</head>
+<body>
+
+    <h1>Validation Pipeline Report</h1>
+    <p>Report generated on: {{ report_generation_time }}</p>
+
+    {# ========================== General Info Section ========================== #}
+    <div class="section">
+        <h2>General Run Information</h2>
+        <table>
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>Pipeline Start Time</td><td>{{ general_info.start_time | default('N/A') }}</td></tr>
+            <tr><td>Pipeline End Time</td><td>{{ general_info.end_time | default('N/A') }}</td></tr>
+            <tr><td>Working Directory</td><td><pre>{{ general_info.workdir | default('N/A') }}</pre></td></tr>
+            <tr><td>Snakemake Version</td><td><pre>{{ general_info.snakemake_version | default('N/A') }}</pre></td></tr>
+            <tr><td>Mapping Specification File</td><td>{{ general_info.mapping_spec_path | default('N/A') }}</td></tr>
+            <tr><td>Kraken DB</td><td>{{ general_info.config.kraken_db | default('N/A') }}</td></tr>
+            <tr><td>Kraken Confidence</td><td>{{ general_info.config.kraken_conf | default('N/A') }}</td></tr>
+            <tr><td>Kraken Min Hit Groups</td><td>{{ general_info.config.kraken_mhg | default('N/A') }}</td></tr>
+            <tr><td>Validation Coverage Cutoff</td><td>{{ general_info.config.cov_cutoff | default('N/A') }}</td></tr>
+            <tr><td>Simulation Target Coverage</td><td>{{ general_info.config.sim_cov_target | default('N/A') }} X</td></tr>
+            <tr><td>BBMap Min Identity</td><td>{{ general_info.config.bbmap_minid | default('N/A') }}</td></tr>
+        </table>
+    </div>
+
+    {# ========================== Per Sample Section ========================== #}
+    <h2>Per-Sample Validation Results</h2>
+
+    {% if samples %}
+        {% for sample in samples %} {# samples is the list samples_data #}
+        <div class="section">
+            <h3>Sample: {{ sample.info.name | default('N/A') }} (TaxID: {{ sample.info.tax_id | default('N/A') }}, Genome: {{ sample.info.genome_basename | default('N/A') }})</h3>
+
+            {# --- Mapping Real Reads --- #}
+            <div class="metric-group">
+                <h4>Mapping Real Reads</h4>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Input Read Pairs</td><td>{{ sample.real_mapping_stats.input_read_pairs | format_metric(0) }}</td></tr>
+                    <tr><td>Mapped Reads (R1)</td><td>{{ sample.real_mapping_stats.r1_mapped_count | format_metric(0) }}</td></tr>
+                    <tr><td>Mapped Reads (R1, %)</td><td>{{ sample.real_mapping_stats.r1_mapped_percent | format_metric(2) }} %</td></tr>
+                    <tr><td>Unambiguous Reads (R1, %)</td><td>{{ sample.real_mapping_stats.r1_unambiguous_percent | format_metric(2) }} %</td></tr>
+                    <tr><td>Ambiguous Reads (R1, %)</td><td>{{ sample.real_mapping_stats.r1_ambiguous_percent | format_metric(2) }} %</td></tr>
+                    <tr><td>Unmapped Reads (R1, %)</td><td>{{ sample.real_mapping_stats.r1_unmapped_percent | format_metric(4) }} %</td></tr>
+                    <tr><td>Mapped Reads (R2)</td><td>{{ sample.real_mapping_stats.r2_mapped_count | format_metric(0) }}</td></tr>
+                    <tr><td>Mapped Reads (R2, %)</td><td>{{ sample.real_mapping_stats.r2_mapped_percent | format_metric(2) }} %</td></tr>
+                    <tr><td>Mated Pairs</td><td>{{ sample.real_mapping_stats.pairing_mated_pairs_count | format_metric(0) }}</td></tr>
+                    <tr><td>Mated Pairs (%)</td><td>{{ sample.real_mapping_stats.pairing_mated_pairs_percent | format_metric(2) }} %</td></tr>
+                    <tr><td>Duplicates Removed (Reads)</td><td>{{ sample.dedup_stats.duplicates_removed | format_metric(0) }}</td></tr>
+                    <tr><td>Reference Genome Size (bp)</td><td>{{ sample.genome_info.genome_size | format_metric(0) }}</td></tr>
+                    <tr><td>Reference Contig Count</td><td>{{ sample.genome_info.contig_count | format_metric(0) }}</td></tr>
+                    <tr><td>Mean Depth Coverage</td><td>{{ sample.real_coverage_depth | format_metric(4) }} X</td></tr>
+                    <tr><td>Estimated Insert Size (Mean ± Stdev)</td><td>{{ sample.sim_params_data.sim_params_estimated_insert_size | format_metric(1) }} ± {{ sample.sim_params_data.sim_params_estimated_std_insert_size | format_metric(1) }}</td></tr>
+                    <tr><td>Estimated Read Length (Mean)</td><td>{{ sample.sim_params_data.sim_params_estimated_read_length | format_metric(1) }}</td></tr>
+                </table>
+            </div>
+
+            {# --- Simulation --- #}
+            <div class="metric-group">
+                <h4>Simulation</h4>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Used Insert Size (Mean ± Stdev)</td><td>{{ sample.sim_params_data.sim_params_used_insert_size | format_metric(1) }} ± {{ sample.sim_params_data.sim_params_used_std_insert_size | format_metric(1) }}</td></tr>
+                    <tr><td>Used Read Length (Mean)</td><td>{{ sample.sim_params_data.sim_params_used_read_length | format_metric(1) }}</td></tr>
+                    <tr><td>Target Simulation Coverage</td><td>{{ sample.sim_target_coverage | default('N/A') }} X</td></tr>
+                    <tr><td>Simulated Read Pairs</td><td>{{ sample.pirs_log_stats.simulated_pairs | format_metric(0) }}</td></tr>
+                </table>
+            </div>
+
+            {# --- Classification --- #}
+            <div class="metric-group">
+                <h4>Classification (Simulated Reads)</h4>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Total PE Reads Processed</td><td>{{ sample.sim_classified_reads.total_pe_reads_processed | format_metric(0) }}</td></tr>
+                    <tr><td>Correctly Classified PE Reads</td><td>{{ sample.sim_classified_reads.correctly_classified_pe_reads | format_metric(0) }}</td></tr>
+                    <tr><td>Correctly Classified PE Reads (%)</td><td>{{ sample.sim_classified_reads.correctly_classified_pe_perc | format_metric(2) }} %</td></tr>
+                </table>
+            </div>
+
+            {# --- Mapping Simulated Reads --- #}
+            <div class="metric-group">
+                <h4>Mapping Simulated Reads (Correctly Classified Subset)</h4>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Input Read Pairs</td><td>{{ sample.simulated_mapping_stats.input_read_pairs | format_metric(0) }}</td></tr>
+                    <tr><td>Mapped Reads (R1)</td><td>{{ sample.simulated_mapping_stats.r1_mapped_count | format_metric(0) }}</td></tr>
+                    <tr><td>Mapped Reads (R1, %)</td><td>{{ sample.simulated_mapping_stats.r1_mapped_percent | format_metric(2) }} %</td></tr>
+                    <tr><td>Mapped Reads (R2)</td><td>{{ sample.simulated_mapping_stats.r2_mapped_count | format_metric(0) }}</td></tr>
+                    <tr><td>Mapped Reads (R2, %)</td><td>{{ sample.simulated_mapping_stats.r2_mapped_percent | format_metric(2) }} %</td></tr>
+                </table>
+            </div>
+
+            {# --- Classifiable Regions --- #}
+            <div class="metric-group">
+                 <h4>Classifiable Regions</h4>
+                 <table>
+                      <tr><th>Metric</th><th>Value</th></tr>
+                      <tr><td>Total Length (bp)</td><td>{{ sample.classifiable_regions.classif_regions_total_length | format_metric(0) }}</td></tr>
+                      <tr><td>Total Length (% of Genome)</td><td>{{ sample.classifiable_regions.classif_regions_percent_genome | format_metric(2) }} %</td></tr>
+                      <tr><td>Non-Classifiable Length (bp)</td><td>{{ sample.classifiable_regions.non_classif_regions_length | format_metric(0) }}</td></tr>
+                      <tr><td>Non-Classifiable Length (% of Genome)</td><td>{{ sample.classifiable_regions.non_classif_regions_percent_genome | format_metric(2) }} %</td></tr>
+                 </table>
+            </div>
+
+            {# --- Plot --- #}
+            <div class="metric-group">
+                <h4>Validation Scatter Plot</h4>
+                <div class="plot-container">
+                    {{ sample.plot_html_div | safe }}
+                </div>
+            </div>
+
+        </div> {# End section for sample #}
+        {% endfor %}
+    {% else %}
+        {# Message if samples_data list is empty #}
+        <p>No samples processed or found in the mapping specification.</p>
+    {% endif %}
+
+</body>
+</html>

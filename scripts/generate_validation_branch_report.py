@@ -549,8 +549,8 @@ def parse_extract_ids_log(filepath):
                         found_metrics = True
                         
                         # Percentage calculation
-                        if stats['total_pe_reads_processed'] > 0:
-                            corr_class_perc = round((stats['correctly_classified_pe_reads'] / stats['total_pe_reads_processed']) * 100, 2)
+                        if total_pe_reads_processed > 0:
+                            corr_class_perc = round((corr_class_pe_reads / total_pe_reads_processed) * 100, 2)
                         else:
                             corr_class_perc = 'N/A'
                         
@@ -884,13 +884,61 @@ else:
 
 # --- HTML Generation ---
 logging.info("Generating final HTML report.")
-html_content = "<html><body><h1>Report Placeholder</h1>"
-# TODO: Implement Jinja2 loading and rendering
-# env = Environment(loader=FileSystemLoader("templates")) # Define template dir
-# template = env.get_template("report_template.html")
-# template_data = { ... }
-# html_content = template.render(template_data)
-html_content += "</body></html>"
+html_content = """<html><head><title>Report Generation Error</title></head>
+                <body><h1>Error: Report Generation Failed</h1>
+                <p>Could not render Jinja2 template. Check logs.</p></body></html>"""
+
+try:
+    # Set up Jinja2 environment
+    script_dir = Path(__file__).parent
+    template_dir = script_dir / "templates"
+    if not template_dir.is_dir():
+         logging.error(f"Jinja2 template directory not found at expected location: {template_dir}")
+         raise FileNotFoundError(f"Template directory not found: {template_dir}")
+
+    env = Environment(
+        loader=FileSystemLoader(template_dir),
+        autoescape=True)
+
+    # Add custom filter for formatting numbers nicely or showing 'N/A'
+    def format_metric(value, precision=2, na_value='N/A'):
+        """Jinja filter to format numbers with commas and precision, or return N/A."""
+        if value is None or value == 'N/A':
+            return f'<span class="value-na">{na_value}</span>'
+        try:
+            # Attempt to convert to float first for flexible input
+            num_value = float(value)
+            # Format based on precision
+            if precision == 0:
+                return f"{int(num_value):,}"          # Comma separators, no decimal
+            else:
+                return f"{num_value:,.{precision}f}"  # Comma separators, specified decimal places
+        except (ValueError, TypeError):
+            # If conversion fails, return original value (might be error string) or N/A
+             logging.warning(f"format_metric filter could not format value: {value}")
+             return f'<span class="value-na">{na_value}</span>'
+
+    # Register the filter
+    env.filters['format_metric'] = format_metric
+
+    # Load the template file
+    template_file_name = "report_template.html"
+    template = env.get_template(template_file_name)
+    logging.info(f"Loaded Jinja2 template: {template_file_name}")
+
+    # Prepare the full data context for the template
+    template_data = {
+         'report_generation_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z'),
+         'general_info': general_info, # Dictionary of general run info
+         'samples': samples_data       # List of sample dictionaries
+    }
+
+    # Render HTML
+    html_content = template.render(template_data)
+    logging.info(f"Successfully rendered HTML report template.")
+
+except Exception as e:
+     logging.error(f"Error generating HTML report with Jinja2: {e}", exc_info=True)
 
 
 # --- Write Output ---

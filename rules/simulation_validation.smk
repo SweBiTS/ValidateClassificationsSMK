@@ -564,6 +564,12 @@ rule validation_branch_report:
              "summary_tsvs": PER_SAMPLE_SUMMARY_PATTERN}
     conda:
         ".." / ENVS_DIR / "analysis.yaml"
+    threads: config.get("VALIDATION_REPORT_THREADS", 1)
+    resources:
+        runtime=config.get("VALIDATION_REPORT_RUNTIME", "15m"),
+        mem_mb=config.get("VALIDATION_REPORT_MEM_MB", 2000),
+        cpus_per_task=config.get("VALIDATION_REPORT_THREADS", 1)
+    benchmark: LOG_VALIDATION_BRANCH_REPORT_PATTERN.replace("log", "benchmark")
     script:
         "../scripts/generate_validation_branch_report.py"
 
