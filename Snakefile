@@ -78,7 +78,7 @@ def load_mapping_spec(config_mapping_spec_path):
     mapping_spec_file = Path(config_mapping_spec_path)
     required_columns = ['tax_id', 'name', 'fasta_file']
     allowed_suffixes = {'.fasta', '.fa', '.fna'}
-    allowed_name_pattern = re.compile(r"^[a-zA-Z0-9 ]+$")  # Allowed in the name col (letters, numbers, space)
+    allowed_name_pattern = re.compile(r"^[a-zA-Z0-9 _-]+$")  # Allowed in the name col (letters, numbers, space, underscores, and hyphens)
     
     if not mapping_spec_file.is_file():
         sys.exit(f"WORKFLOW_ERROR: Mapping specification file not found at '{mapping_spec_file}'. Exiting.")
@@ -118,7 +118,7 @@ def load_mapping_spec(config_mapping_spec_path):
                 invalid_names.append(f"Row index {index}: tax_id='{row['tax_id']}', name='{name}'")
         if invalid_names:
             error_msg = (f"WORKFLOW_ERROR: Found rows in '{mapping_spec_file}' with invalid characters in the 'name' column "
-                         f"(only letters, numbers, and spaces are allowed):\n" + "\n".join(invalid_names))
+                         f"(only letters, numbers, underscores, hyphens, and spaces are allowed):\n" + "\n".join(invalid_names))
             sys.exit(error_msg)
 
         # Check if listed fasta files actually exist

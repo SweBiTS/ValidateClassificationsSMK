@@ -6,7 +6,8 @@
 #
 # tax_id: ----- The taxonomic ID of the taxon, must be an integer
 # name: ------- The name that you wish to identify the taxon/reference combination with. 
-#               For example the scientific name of the taxon. Alphanumericals and spaces are allowed.
+#               For example the scientific name of the taxon. Alphanumericals, spaces, 
+#               underscores, and hyphens are allowed.
 #               Spaces will be replaced with underscores (_) in filenames and paths.
 # fasta_file: - The full filename of the reference sequence file in the supporting_files/genomes directory.
 #               Allowed suffixes are .fasta/.fna/.fa.
